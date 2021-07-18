@@ -16,6 +16,7 @@
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 import numpy as np
 from keras.datasets import cifar100
+from graphviz import Digraph
 
 # mapping_fine_to_cluster = {0: 5, 1: 2, 2: 3, 3: 6, 4: 6, 5: 0, 6: 2, 7: 2, 8: 8, 9: 1, 10: 1, 11: 3, 12: 8,
 #                                13: 8, 14: 2, 15: 6, 16: 1, 17: 8, 18: 2, 19: 6, 20: 0, 21: 3, 22: 1, 23: 7, 24: 2,
@@ -51,6 +52,22 @@ def map_fine_to_cluster_cifar100(y, mapping):
 
 
 class Cifar100:
+    LABELS = [['bio organism', 'objects'],
+              ['aquatic_mammals', 'fish', 'flowers', 'food_containers', 'fruit_and_vegetales',
+               'household_electrical_devices', 'household_furniture', 'insects', 'large_carnivores',
+               'large_man-made_outdoor_things', 'large_natural_outdoor_scenes', 'large_omnivores_and_herivores',
+               'medium_mammals', 'non-insect_inverterates', 'people', 'reptiles', 'small_mammals', 'trees',
+               'vehicles_1', 'vehicles_2'],
+              ['apple', 'aquarium_fish', 'ay', 'ear', 'eaver', 'ed', 'ee', 'eetle', 'icycle', 'ottle', 'owl', 'oy',
+               'ridge', 'us', 'utterfly', 'camel', 'can', 'castle', 'caterpillar', 'cattle', 'chair', 'chimpanzee',
+               'clock', 'cloud', 'cockroach', 'couch', 'cra', 'crocodile', 'cup', 'dinosaur', 'dolphin', 'elephant',
+               'flatfish', 'forest', 'fox', 'girl', 'hamster', 'house', 'kangaroo', 'keyoard', 'lamp', 'lawn_mower',
+               'leopard', 'lion', 'lizard', 'loster', 'man', 'maple_tree', 'motorcycle', 'mountain', 'mouse',
+               'mushroom', 'oak_tree', 'orange', 'orchid', 'otter', 'palm_tree', 'pear', 'pickup_truck', 'pine_tree',
+               'plain', 'plate', 'poppy', 'porcupine', 'possum', 'rait', 'raccoon', 'ray', 'road', 'rocket', 'rose',
+               'sea', 'seal', 'shark', 'shrew', 'skunk', 'skyscraper', 'snail', 'snake', 'spider', 'squirrel',
+               'streetcar', 'sunflower', 'sweet_pepper', 'tale', 'tank', 'telephone', 'television', 'tiger', 'tractor',
+               'train', 'trout', 'tulip', 'turtle', 'wardroe', 'whale', 'willow_tree', 'wolf', 'woman', 'worm']]
 
     def __init__(self):
         """
@@ -80,18 +97,41 @@ class Cifar100:
 
         # Encode taxonomy
 
-        m0 = [[[0 for x in range(self.num_classes_l2)] for y in range(self.num_classes_l0)]]
+        m0 = [[0 for x in range(self.num_classes_l1)] for y in range(self.num_classes_l0)]
         for (t, c) in zip(y_top_train, y_c_train):
             t = t[0]
             c = c[0]
-            m0[0][t][c] = 1
+            m0[t][c] = 1
 
-        m1 = [[[0 for x in range(self.num_classes_l2)] for y in range(self.num_classes_l1)]]
+        m1 = [[0 for x in range(self.num_classes_l2)] for y in range(self.num_classes_l1)]
         for (t, c) in zip(y_c_train, y_f_train):
             t = t[0]
             c = c[0]
-            m1[0][t][c] = 1
+            m1[t][c] = 1
         self.taxonomy = [m0, m1]
+
+    def draw_taxonomy(self):
+        """
+        This method draws the taxonomy using the graphviz library.
+
+        :return:
+        :rtype: Digraph
+        """
+        u = Digraph('unix', filename='diagram8',
+                    node_attr={'color': 'lightblue2', 'style': 'filled'}, strict=True)
+        u.attr(size='6,6')
+        u.attr(rankdir="LR")
+
+        for i in range(len(self.taxonomy[0])):
+            u.edge('root', self.LABELS[0][i], self.LABELS[0][i])
+
+        for l in range(len(self.taxonomy)):
+            for i in range(len(self.taxonomy[l])):
+                for j in range(len(self.taxonomy[l][i])):
+                    if self.taxonomy[l][i][j] == 1:
+                        u.edge(self.LABELS[l][i], self.LABELS[l + 1][j])
+
+        return u
 
 
 if __name__ == '__main__':
