@@ -16,7 +16,7 @@
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 import numpy as np
 from sklearn.metrics import accuracy_score
-
+from scipy.stats import hmean
 
 def get_accuracy(y_pred: list, y: list):
     """
@@ -33,6 +33,23 @@ def get_accuracy(y_pred: list, y: list):
         raise Exception('Size of the inputs should be the same.')
     accuracy = [accuracy_score(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
     return accuracy
+
+
+def get_h_accuracy(y_pred: list, y: list):
+    """
+    This method computes the harmonic mean of accuracies of all level in the taxonomy.
+
+    :param y_pred: a 2d array where d1 is the taxonomy level, and d2 is the prediction for each example.
+    :type y_pred: list
+    :param y: a 2d array where d1 is the taxonomy level, and d2 is the ground truth for each example.
+    :type y: list
+    :return: accuracy for each level of the taxonomy.
+    :rtype: list
+    """
+    if len(y) != len(y_pred):
+        raise Exception('Size of the inputs should be the same.')
+    accuracy = [accuracy_score(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
+    return hmean(accuracy)
 
 
 def get_exact_match(y_pred: list, y: list):
