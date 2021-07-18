@@ -24,7 +24,7 @@ from deakin.edu.au.data import Cifar100
 
 
 def get_MLPH_model(num_classes: list, image_size, conv_base=VGG19(include_top=False, weights="imagenet"),
-                   learning_rate=1e-5, pi=0.5):
+                   learning_rate=1e-5, loss_weights=[]):
     # Conv base
     in_layer = Input(shape=image_size, name='main_input')
     conv_base = conv_base(in_layer)
@@ -38,24 +38,30 @@ def get_MLPH_model(num_classes: list, image_size, conv_base=VGG19(include_top=Fa
     model = Model(name='MLPH_model',
                   inputs=in_layer,
                   outputs=out_layers)
-    loss = keras.losses.SparseCategoricalCrossentropy()
+    loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
+    if len(loss_weights) == 0:
+        loss_weights = [1 / len(num_classes) for x in num_classes]
     optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
     model.compile(optimizer=optimizer,
-                  loss=[loss, loss],
-                  loss_weights=[1 - pi, pi],
+                  loss=loss,
+                  loss_weights=loss_weights,
                   metrics=['accuracy'])
     return model
 
 
-def get_BCNN1(num_classes: list, image_size, conv_base=VGG19(include_top=False, weights="imagenet"),
-              learning_rate=1e-5, pi=0.5):
+def get_BCNN1(num_classes: list, image_size, reverse=False, conv_base=VGG19(include_top=False, weights="imagenet"),
+              learning_rate=1e-5, loss_weights=[]):
     # Conv base
     in_layer = Input(shape=image_size, name='main_input')
     conv_base = conv_base(in_layer)
     conv_base = Flatten()(conv_base)
     # create output layers
     out_layers = []
+    if reverse:
+        num_classes = list(reversed(num_classes))
     for idx, v in enumerate(num_classes):
+        if reverse:
+            idx = len(num_classes) - idx - 1
         if len(out_layers) == 0:
             out_layers.append(Dense(v, activation="softmax", name='out_level_' + str(idx))(conv_base))
         else:
@@ -64,45 +70,19 @@ def get_BCNN1(num_classes: list, image_size, conv_base=VGG19(include_top=False, 
     model = Model(name='Model_BCNN1',
                   inputs=in_layer,
                   outputs=out_layers)
-    loss = keras.losses.SparseCategoricalCrossentropy()
+    loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
+    if len(loss_weights) == 0:
+        loss_weights = [1 / len(num_classes) for x in num_classes]
     optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
     model.compile(optimizer=optimizer,
-                  loss=[loss, loss],
-                  loss_weights=[1 - pi, pi],
+                  loss=loss,
+                  loss_weights=loss_weights,
                   metrics=['accuracy'])
     return model
 
 
-def get_BCNN2(num_classes: list, image_size, conv_base=VGG19(include_top=False, weights="imagenet"),
-              learning_rate=1e-5, pi=0.5):
-    in_layer = Input(shape=image_size, name='main_input')
-    conv_base = conv_base(in_layer)
-    conv_base = Flatten()(conv_base)
-
-    # create output layers
-    out_layers = []
-    for idx, v in enumerate(reversed(num_classes)):
-        idx = len(num_classes) - idx - 1
-        if len(out_layers) == 0:
-            out_layers.append(Dense(v, activation="softmax", name='out_level_' + str(idx))(conv_base))
-        else:
-            out_layers.append(Dense(v, activation="softmax", name='out_level_' + str(idx))(out_layers[-1]))
-
-    # Build the model
-    model = Model(name='Model_BCNN2',
-                  inputs=in_layer,
-                  outputs=out_layers)
-    loss = keras.losses.SparseCategoricalCrossentropy()
-    optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
-    model.compile(optimizer=optimizer,
-                  loss=[loss, loss],
-                  loss_weights=[1 - pi, pi],
-                  metrics=['accuracy'])
-    return model
-
-
-def get_BCNN3(num_classes: list, image_size, conv_base=VGG19(include_top=False, weights="imagenet"),
-              learning_rate=1e-5, pi=0.5):
+def get_BCNN2(num_classes: list, image_size, reverse=False, conv_base=VGG19(include_top=False, weights="imagenet"),
+              learning_rate=1e-5, loss_weights=[]):
     # Conv base
     in_layer = Input(shape=image_size, name='main_input')
     conv_base = conv_base(in_layer)
@@ -110,45 +90,64 @@ def get_BCNN3(num_classes: list, image_size, conv_base=VGG19(include_top=False, 
     # create output layers
     logits_layers = []
     out_layers = []
+    if reverse:
+        num_classes = list(reversed(num_classes))
     for idx, v in enumerate(num_classes):
+        if reverse:
+            idx = len(num_classes) - idx - 1
         if len(logits_layers) == 0:
-            logits = Dense(v, name='logits_c')(conv_base)
-
+            logits = Dense(v, name='logits_level_' + str(idx))(conv_base)
+            logits_layers.append(logits)
+            out_layers.append(Activation(keras.activations.softmax, name='out_level_' + str(idx))(logits))
         else:
-            logits = Dense(v, name='logits_c')(logits_layers[-1])
-        logits_layers.append(logits)
-        out_layers.append(Activation(v, activation="softmax", name='out_level_' + str(idx))(logits))
-
-
-    # coarse output
-    logits_c = Dense(num_classes_c, name='logits_c')(conv_base)
-    out_c = Activation(keras.activations.softmax, name='out_c')(logits_c)
-
-    # fine output
-    relu_c = Activation(keras.activations.relu, name='relu_c')(logits_c)
-    out_f = Dense(num_classes_f, activation="softmax", name='out_f')(relu_c)
-
+            logits = Dense(v, name='logits_level_' + str(idx))(logits_layers[-1])
+            logits_layers.append(logits)
+            out_layers.append(Activation(keras.activations.softmax, name='out_level_' + str(idx))(logits))
     # Build the model
-    model = Model(name='Model_4',
+    model = Model(name='BCNN2',
                   inputs=in_layer,
-                  outputs=[out_c, out_f])
-    loss = keras.losses.SparseCategoricalCrossentropy()
+                  outputs=out_layers)
+    loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
+    if len(loss_weights) == 0:
+        loss_weights = [1 / len(num_classes) for x in num_classes]
     optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
     model.compile(optimizer=optimizer,
-                  loss=[loss, loss],
-                  loss_weights=[1 - pi, pi],
+                  loss=loss,
+                  loss_weights=loss_weights,
                   metrics=['accuracy'])
     return model
 
 
-# model = get_model4()
-# model.summary()
-# plot_model(model)
+def get_mnets(num_classes: list, image_size, reverse=False, conv_base=[],
+              learning_rate=1e-5, loss_weights=[]):
+    in_layer = Input(shape=image_size, name='main_input')
+    # Conv base
+    if len(conv_base) == 0 or len(num_classes) != len(conv_base):
+        conv_base = [VGG19(include_top=False, weights="imagenet") for x in num_classes]
+    out_layers = []
+    for i in range(len(conv_base)):
+        conv_base[i]._name = 'conv_base' + str(i)
+        conv_base[i] = conv_base[i](in_layer)
+        conv_base[i] = Flatten()(conv_base[i])
+        out_layers.append(Dense(20, activation="softmax", name='out_level_' + str(i))(conv_base[i]))
+
+    # Build the model
+    model = Model(name='mnets',
+                  inputs=in_layer,
+                  outputs=out_layers)
+    loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
+    if len(loss_weights) == 0:
+        loss_weights = [1 / len(num_classes) for x in num_classes]
+    optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
+    model.compile(optimizer=optimizer,
+                  loss=loss,
+                  loss_weights=loss_weights,
+                  metrics=['accuracy'])
+    return model
 
 
 if __name__ == '__main__':
     dataset = Cifar100()
-    num_classes = [dataset.num_classes_c, dataset.num_classes_f]
-    model = get_BCNN1(num_classes, dataset.image_size)
+    num_classes = [dataset.num_classes_l0, dataset.num_classes_l1, dataset.num_classes_l2]
+    model = get_mnets(num_classes, dataset.image_size)
     model.summary()
-    # plot_model(model)
