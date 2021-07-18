@@ -99,7 +99,7 @@ def get_BCNN1(num_classes: list, image_size, reverse=False, conv_base=VGG19(incl
     if reverse:
         out_layers = list(reversed(out_layers))
     # Build the model
-    model = Model(name='Model_BCNN1',
+    model = Model(name='Model_BCNN1_reversed_' + str(reverse),
                   inputs=in_layer,
                   outputs=out_layers)
     loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
@@ -139,7 +139,7 @@ def get_BCNN2(num_classes: list, image_size, reverse=False, conv_base=VGG19(incl
     if reverse:
         out_layers = list(reversed(out_layers))
     # Build the model
-    model = Model(name='BCNN2',
+    model = Model(name='Model_BCNN2_reversed_' + str(reverse),
                   inputs=in_layer,
                   outputs=out_layers)
     loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
