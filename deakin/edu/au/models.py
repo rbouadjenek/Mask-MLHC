@@ -19,52 +19,38 @@ from tensorflow.keras.layers import Input, Dropout, Flatten, Dense, Activation, 
     GlobalAveragePooling2D
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications import VGG19
-import numpy as np
 from deakin.edu.au.data import Cifar100
+import deakin.edu.au.metrics as metrics
+import numpy as np
 
 
-class global_accuracy(keras.callbacks.Callback):
-    """
-    Each `SquadExample` object contains the character level offsets for each token
-    in its input paragraph. We use them to get back the span of text corresponding
-    to the tokens between our predicted start and end tokens.
-    All the ground-truth answers are also present in each `SquadExample` object.
-    We calculate the percentage of data points where the span of text obtained
-    from model predictions matches one of the ground-truth answers.
-    """
-
-    def __init__(self, x_eval, y_eval):
-        self.x_eval = x_eval
-        self.y_eval = y_eval
+class performance_callback(keras.callbacks.Callback):
+    def __init__(self, X, y, taxo):
+        self.X = X
+        self.y = y
+        self.taxo = taxo
 
     def on_epoch_end(self, epoch, logs=None):
-        accuracy, accuracy_c, accuracy_f, accuracy_c_no_f, accuracy_f_no_c, accuracy_no_f_no_c, accuracy_consistency, consistency = get_metrics(
-            self.model, self.x_eval, self.y_eval)
-
-        accuracy_ci = 1.96 * np.std(accuracy) / np.sqrt(len(accuracy))
-        accuracy = np.mean(accuracy)
-
-        accuracy_c_ci = 1.96 * np.std(accuracy_c) / np.sqrt(len(accuracy_c))
-        accuracy_c = np.mean(accuracy_c)
-
-        accuracy_f_ci = 1.96 * np.std(accuracy_f) / np.sqrt(len(accuracy_f))
-        accuracy_f = np.mean(accuracy_f)
-
-        accuracy_c_no_f = np.mean(accuracy_c_no_f)
-
-        accuracy_f_no_c = np.mean(accuracy_f_no_c)
-
-        accuracy_no_f_no_c = np.mean(accuracy_no_f_no_c)
-
-        accuracy_consistency = np.mean(accuracy_consistency)
-
-        consistency = np.mean(consistency)
-
+        y_pred = self.model.predict(self.X)
+        y_pred = get_pred_indexes(y_pred)
+        accuracy = metrics.get_accuracy(y_pred, self.y)
+        exact_match = metrics.get_exact_match(y_pred, self.y)
+        consistency = metrics.get_consistency(y_pred, self.taxo)
         print('-' * 100)
-        print(
-            f"epoch={epoch + 1}, global accuracy = {accuracy:.4f}±{accuracy_ci:.4f}, accuracy_c = {accuracy_c:.4f}±{accuracy_c_ci:.4f}, accuracy_f = {accuracy_f:.4f}±{accuracy_f_ci:.4f}, accuracy_c_no_f = {accuracy_c_no_f:.4f}, accuracy_f_no_c = {accuracy_f_no_c:.4f}, accuracy_no_f_no_c = {accuracy_no_f_no_c:.4f}, accuracy_consistency = {accuracy_consistency:.4f}, consistency = {consistency:.4f}")
+        print(f"epoch={epoch + 1}, ", end='')
+        print(f"Exact Match = {exact_match:.4f}, ", end='')
+        for i in range(len(accuracy)):
+            print(f"accuracy level_{i} = {accuracy[i]:.4f}, ", end='')
+        print(f"Consistency = {consistency:.4f}")
         print('-' * 100)
         print('')
+
+
+def get_pred_indexes(y_pred):
+    y_pred_indexes = []
+    for pred in y_pred:
+        y_pred_indexes.append(np.argmax(pred, axis=1))
+    return y_pred_indexes
 
 
 def get_MLPH_model(num_classes: list, image_size, conv_base=VGG19(include_top=False, weights="imagenet"),

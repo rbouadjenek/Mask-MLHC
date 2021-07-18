@@ -18,14 +18,14 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 
 
-def get_accuracy(y: list, y_pred: list):
+def get_accuracy(y_pred: list, y: list):
     """
     This method computes the accuracy for each level in the taxonomy.
 
-    :param y: a 2d array where d1 is the taxonomy level, and d2 is the ground truth for each example.
-    :type y: list
     :param y_pred: a 2d array where d1 is the taxonomy level, and d2 is the prediction for each example.
     :type y_pred: list
+    :param y: a 2d array where d1 is the taxonomy level, and d2 is the ground truth for each example.
+    :type y: list
     :return: accuracy for each level of the taxonomy.
     :rtype: list
     """
@@ -35,15 +35,15 @@ def get_accuracy(y: list, y_pred: list):
     return accuracy
 
 
-def get_exact_match(y: list, y_pred: list):
+def get_exact_match(y_pred: list, y: list):
     """
     This method compute the exact match score. Exact match is defined as the #of examples for
     which the predictions for all level in the taxonomy is correct by the total #of examples.
 
-    :param y: a 2d array where d1 is the taxonomy level, and d2 is the ground truth for each example.
-    :type y: list
     :param y_pred: a 2d array where d1 is the taxonomy level, and d2 is the prediction for each example.
     :type y_pred: list
+    :param y: a 2d array where d1 is the taxonomy level, and d2 is the ground truth for each example.
+    :type y: list
     :return: the exact match value
     :rtype: float
     """
