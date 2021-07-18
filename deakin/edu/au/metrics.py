@@ -18,49 +18,49 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 
 
-def get_accuracy(y: np.array, y_pred: np.array):
+def get_accuracy(y: list, y_pred: list):
     """
     This method computes the accuracy for each level in the taxonomy.
 
     :param y: a 2d array where d1 is the taxonomy level, and d2 is the ground truth for each example.
-    :type y: np.array
+    :type y: list
     :param y_pred: a 2d array where d1 is the taxonomy level, and d2 is the prediction for each example.
-    :type y_pred: np.array
+    :type y_pred: list
     :return: accuracy for each level of the taxonomy.
     :rtype: list
     """
-    if y.shape != y_pred.shape:
-        raise Exception('Shape of the inputs should be the same')
+    if len(y) != len(y_pred):
+        raise Exception('Size of the inputs should be the same.')
     accuracy = [accuracy_score(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
     return accuracy
 
 
-def get_exact_match(y: np.array, y_pred: np.array):
+def get_exact_match(y: list, y_pred: list):
     """
     This method compute the exact match score. Exact match is defined as the #of examples for
     which the predictions for all level in the taxonomy is correct by the total #of examples.
 
     :param y: a 2d array where d1 is the taxonomy level, and d2 is the ground truth for each example.
-    :type y: np.array
+    :type y: list
     :param y_pred: a 2d array where d1 is the taxonomy level, and d2 is the prediction for each example.
-    :type y_pred: np.array
+    :type y_pred: list
     :return: the exact match value
     :rtype: float
     """
-    if y.shape != y_pred.shape:
+    if len(y) != len(y_pred):
         raise Exception('Shape of the inputs should be the same')
     exact_match = []
     for j in range(len(y[0])):
         v = 1
         for i in range(len(y)):
-            if y[i, j] != y_pred[i, j]:
+            if y[i][j] != y_pred[i][j]:
                 v = 0
                 break
         exact_match.append(v)
     return np.mean(exact_match)
 
 
-def get_consistency(y_pred: np.array, taxo: np.array):
+def get_consistency(y_pred: list, taxo: list):
     """
     This methods estimates the consistency.
 
@@ -72,13 +72,13 @@ def get_consistency(y_pred: np.array, taxo: np.array):
     :rtype: float
     """
     if len(y_pred) - 1 != len(taxo):
-        raise Exception('The predictions do not match the taxonomy')
+        raise Exception('The predictions do not match the taxonomy.')
     consistency = []
     for j in range(len(y[0])):
         v = 1
         for i in range(len(y) - 1):
-            l = y_pred[i, j]
-            l_next = y_pred[i + 1, j]
+            l = y_pred[i][j]
+            l_next = y_pred[i + 1][j]
             if taxo[i][l][l_next] == 0:
                 v = 0
                 break
@@ -87,9 +87,9 @@ def get_consistency(y_pred: np.array, taxo: np.array):
 
 
 if __name__ == '__main__':
-    y = np.array([[1, 0, 1, 0, 0], [1, 2, 3, 4, 0], [3, 4, 5, 8, 0]])
+    y = [[1, 0, 1, 0, 0], [1, 2, 3, 4, 0], [3, 4, 5, 8, 0]]
 
-    y_pred = np.array([[0, 1, 1, 0, 0], [1, 2, 1, 4, 0], [3, 1, 5, 8, 0]])
+    y_pred = [[0, 1, 1, 0, 0], [1, 2, 1, 4, 0], [3, 1, 5, 8, 0]]
 
     taxo = [[[1, 1, 0, 0, 0], [0, 0, 1, 1, 1]],
             [[1, 1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0, 0], [0, 0, 0, 1, 1, 1, 0, 0, 0],

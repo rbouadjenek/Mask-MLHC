@@ -23,6 +23,50 @@ import numpy as np
 from deakin.edu.au.data import Cifar100
 
 
+class global_accuracy(keras.callbacks.Callback):
+    """
+    Each `SquadExample` object contains the character level offsets for each token
+    in its input paragraph. We use them to get back the span of text corresponding
+    to the tokens between our predicted start and end tokens.
+    All the ground-truth answers are also present in each `SquadExample` object.
+    We calculate the percentage of data points where the span of text obtained
+    from model predictions matches one of the ground-truth answers.
+    """
+
+    def __init__(self, x_eval, y_eval):
+        self.x_eval = x_eval
+        self.y_eval = y_eval
+
+    def on_epoch_end(self, epoch, logs=None):
+        accuracy, accuracy_c, accuracy_f, accuracy_c_no_f, accuracy_f_no_c, accuracy_no_f_no_c, accuracy_consistency, consistency = get_metrics(
+            self.model, self.x_eval, self.y_eval)
+
+        accuracy_ci = 1.96 * np.std(accuracy) / np.sqrt(len(accuracy))
+        accuracy = np.mean(accuracy)
+
+        accuracy_c_ci = 1.96 * np.std(accuracy_c) / np.sqrt(len(accuracy_c))
+        accuracy_c = np.mean(accuracy_c)
+
+        accuracy_f_ci = 1.96 * np.std(accuracy_f) / np.sqrt(len(accuracy_f))
+        accuracy_f = np.mean(accuracy_f)
+
+        accuracy_c_no_f = np.mean(accuracy_c_no_f)
+
+        accuracy_f_no_c = np.mean(accuracy_f_no_c)
+
+        accuracy_no_f_no_c = np.mean(accuracy_no_f_no_c)
+
+        accuracy_consistency = np.mean(accuracy_consistency)
+
+        consistency = np.mean(consistency)
+
+        print('-' * 100)
+        print(
+            f"epoch={epoch + 1}, global accuracy = {accuracy:.4f}±{accuracy_ci:.4f}, accuracy_c = {accuracy_c:.4f}±{accuracy_c_ci:.4f}, accuracy_f = {accuracy_f:.4f}±{accuracy_f_ci:.4f}, accuracy_c_no_f = {accuracy_c_no_f:.4f}, accuracy_f_no_c = {accuracy_f_no_c:.4f}, accuracy_no_f_no_c = {accuracy_no_f_no_c:.4f}, accuracy_consistency = {accuracy_consistency:.4f}, consistency = {consistency:.4f}")
+        print('-' * 100)
+        print('')
+
+
 def get_MLPH_model(num_classes: list, image_size, conv_base=VGG19(include_top=False, weights="imagenet"),
                    learning_rate=1e-5, loss_weights=[]):
     # Conv base
