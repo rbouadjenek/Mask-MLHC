@@ -74,11 +74,11 @@ def get_consistency(y_pred: list, taxo: list):
     if len(y_pred) - 1 != len(taxo):
         raise Exception('The predictions do not match the taxonomy.')
     consistency = []
-    for j in range(len(y[0])):
+    for j in range(len(y_pred[0])):
         v = 1
-        for i in range(len(y) - 1):
-            l = y_pred[i][j]
-            l_next = y_pred[i + 1][j]
+        for i in range(len(y_pred) - 1):
+            l = int(y_pred[i][j])
+            l_next = int(y_pred[i + 1][j])
             if taxo[i][l][l_next] == 0:
                 v = 0
                 break
