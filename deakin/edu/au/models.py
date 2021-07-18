@@ -96,6 +96,8 @@ def get_BCNN1(num_classes: list, image_size, reverse=False, conv_base=VGG19(incl
             out_layers.append(Dense(v, activation="softmax", name='out_level_' + str(idx))(conv_base))
         else:
             out_layers.append(Dense(v, activation="softmax", name='out_level_' + str(idx))(out_layers[-1]))
+    if reverse:
+        out_layers = list(reversed(out_layers))
     # Build the model
     model = Model(name='Model_BCNN1',
                   inputs=in_layer,
@@ -133,6 +135,8 @@ def get_BCNN2(num_classes: list, image_size, reverse=False, conv_base=VGG19(incl
             logits = Dense(v, name='logits_level_' + str(idx))(logits_layers[-1])
             logits_layers.append(logits)
             out_layers.append(Activation(keras.activations.softmax, name='out_level_' + str(idx))(logits))
+    if reverse:
+        out_layers = list(reversed(out_layers))
     # Build the model
     model = Model(name='BCNN2',
                   inputs=in_layer,
