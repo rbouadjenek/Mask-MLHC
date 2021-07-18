@@ -95,8 +95,7 @@ class Cifar100:
         self.num_classes_l1 = len(set([v[0] for v in y_c_train]))
         self.num_classes_l2 = len(set([v[0] for v in y_f_train]))
 
-        # Encode taxonomy
-
+        # Encoding the taxonomy
         m0 = [[0 for x in range(self.num_classes_l1)] for y in range(self.num_classes_l0)]
         for (t, c) in zip(y_top_train, y_c_train):
             t = t[0]

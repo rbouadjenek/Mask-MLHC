@@ -129,7 +129,7 @@ def get_mnets(num_classes: list, image_size, reverse=False, conv_base=[],
         conv_base[i]._name = 'conv_base' + str(i)
         conv_base[i] = conv_base[i](in_layer)
         conv_base[i] = Flatten()(conv_base[i])
-        out_layers.append(Dense(20, activation="softmax", name='out_level_' + str(i))(conv_base[i]))
+        out_layers.append(Dense(num_classes[i], activation="softmax", name='out_level_' + str(i))(conv_base[i]))
 
     # Build the model
     model = Model(name='mnets',
