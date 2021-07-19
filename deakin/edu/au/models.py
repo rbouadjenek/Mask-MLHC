@@ -189,13 +189,13 @@ class BaselineModel(Model):
     def predict(self, X):
         pred = super().predict(X)
         out = []
-        for i in range(len(dataset.taxonomy) + 1):
+        for i in range(len(self.taxonomy) + 1):
             out.append([])
         for v in pred:
             child = np.argmax(v)
             out[-1].append(v)
-            for i in reversed(range(len(dataset.taxonomy))):
-                m = dataset.taxonomy[i]
+            for i in reversed(range(len(self.taxonomy))):
+                m = self.taxonomy[i]
                 row = list(np.transpose(m)[child])
                 parent = row.index(1)
                 child = parent
@@ -205,7 +205,7 @@ class BaselineModel(Model):
         return out
 
 
-def get_Baseline_model(num_classes: list, image_size, conv_base=VGG19(include_top=False, weights="imagenet"),
+def get_Baseline_model(num_classes: list, image_size, taxonomy, conv_base=VGG19(include_top=False, weights="imagenet"),
                        learning_rate=1e-5):
     # Conv base
     in_layer = Input(shape=image_size, name='main_input')
@@ -214,7 +214,7 @@ def get_Baseline_model(num_classes: list, image_size, conv_base=VGG19(include_to
     # create output layers
     out_layer = Dense(num_classes[-1], activation="softmax", name='output')(conv_base)
     # Build the model
-    model = BaselineModel(taxonomy=dataset.taxonomy, name='MLPH_model',
+    model = BaselineModel(taxonomy=taxonomy, name='MLPH_model',
                           inputs=in_layer,
                           outputs=out_layer)
     loss = keras.losses.SparseCategoricalCrossentropy()
