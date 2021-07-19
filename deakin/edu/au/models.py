@@ -181,6 +181,50 @@ def get_mnets(num_classes: list, image_size, reverse=False, conv_base=[],
     return model
 
 
+class BaselineModel(Model):
+    def __init__(self, taxonomy, *args, **kwargs):
+        super(BaselineModel, self).__init__(*args, **kwargs)
+        self.taxonomy = taxonomy
+
+    def predict(self, X):
+        pred = super().predict(X)
+        out = []
+        for i in range(len(dataset.taxonomy) + 1):
+            out.append([])
+        for v in pred:
+            child = np.argmax(v)
+            out[-1].append(v)
+            for i in reversed(range(len(dataset.taxonomy))):
+                m = dataset.taxonomy[i]
+                row = list(np.transpose(m)[child])
+                parent = row.index(1)
+                child = parent
+                one_hot = np.zeros(len(row))
+                one_hot[child] = 1
+                out[i].append(one_hot)
+        return out
+
+
+def get_Baseline_model(num_classes: list, image_size, conv_base=VGG19(include_top=False, weights="imagenet"),
+                       learning_rate=1e-5):
+    # Conv base
+    in_layer = Input(shape=image_size, name='main_input')
+    conv_base = conv_base(in_layer)
+    conv_base = Flatten()(conv_base)
+    # create output layers
+    out_layer = Dense(num_classes[-1], activation="softmax", name='output')(conv_base)
+    # Build the model
+    model = BaselineModel(taxonomy=dataset.taxonomy, name='MLPH_model',
+                          inputs=in_layer,
+                          outputs=out_layer)
+    loss = keras.losses.SparseCategoricalCrossentropy()
+    optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
+    model.compile(optimizer=optimizer,
+                  loss=loss,
+                  metrics=['accuracy'])
+    return model
+
+
 if __name__ == '__main__':
     dataset = Cifar100()
     num_classes = [dataset.num_classes_l0, dataset.num_classes_l1, dataset.num_classes_l2]
