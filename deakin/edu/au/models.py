@@ -16,7 +16,7 @@
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 from tensorflow import keras
 from tensorflow.keras.layers import Input, Dropout, Flatten, Dense, Activation, Lambda, Conv2D, MaxPool2D, \
-    GlobalAveragePooling2D
+    GlobalAveragePooling2D, Multiply, Concatenate
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications import VGG19
 from deakin.edu.au.data import Cifar100
@@ -53,7 +53,7 @@ def get_pred_indexes(y_pred):
     return y_pred_indexes
 
 
-def get_MLPH_model(num_classes: list, image_size, conv_base=VGG19(include_top=False, weights="imagenet"),
+def get_mout_model(num_classes: list, image_size, conv_base=VGG19(include_top=False, weights="imagenet"),
                    learning_rate=1e-5, loss_weights=[]):
     # Conv base
     in_layer = Input(shape=image_size, name='main_input')
@@ -65,7 +65,7 @@ def get_MLPH_model(num_classes: list, image_size, conv_base=VGG19(include_top=Fa
         out_layers.append(Dense(v, activation="softmax", name='out_level_' + str(idx))(conv_base))
 
     # Build the model
-    model = Model(name='MLPH_model',
+    model = Model(name='mout_model',
                   inputs=in_layer,
                   outputs=out_layers)
     loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
@@ -214,13 +214,74 @@ def get_Baseline_model(num_classes: list, image_size, taxonomy, conv_base=VGG19(
     # create output layers
     out_layer = Dense(num_classes[-1], activation="softmax", name='output')(conv_base)
     # Build the model
-    model = BaselineModel(taxonomy=taxonomy, name='MLPH_model',
+    model = BaselineModel(taxonomy=taxonomy, name='baseline_model',
                           inputs=in_layer,
                           outputs=out_layer)
     loss = keras.losses.SparseCategoricalCrossentropy()
     optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
     model.compile(optimizer=optimizer,
                   loss=loss,
+                  metrics=['accuracy'])
+    return model
+
+
+def get_Classifier_model(num_classes, image_size, conv_base=VGG19(include_top=False, weights="imagenet"),
+                         learning_rate=1e-5):
+    # Conv base
+    in_layer = Input(shape=image_size, name='main_input')
+    conv_base = conv_base(in_layer)
+    conv_base = Flatten()(conv_base)
+    # create output layers
+    out_layer = Dense(num_classes, activation="softmax", name='output')(conv_base)
+    # Build the model
+    model = Model(name='simple_classifer',
+                  inputs=in_layer,
+                  outputs=out_layer)
+    loss = keras.losses.SparseCategoricalCrossentropy()
+    optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
+    model.compile(optimizer=optimizer,
+                  loss=loss,
+                  metrics=['accuracy'])
+    return model
+
+
+def get_MLPH_model(num_classes: list, image_size, learning_rate=1e-5, loss_weights=[]):
+    # Conv base
+    in_layer = Input(shape=image_size, name='main_input')
+    conv_base = VGG19(include_top=False, weights="imagenet")
+    # conv_base.summary()
+    layer_outputs = [conv_base.get_layer("block5_conv1").output,
+                     conv_base.get_layer("block5_conv2").output,
+                     conv_base.get_layer("block5_conv3").output]
+    conv_base_model = Model(inputs=conv_base.input, outputs=layer_outputs)
+    conv_base = conv_base_model(in_layer)
+    relu5_1_X = Flatten()(conv_base[0])
+    relu5_2_Y = Flatten()(conv_base[1])
+    relu5_3_Z = Flatten()(conv_base[2])
+    UTX = Dense(512, activation="relu", name='UTX')(relu5_1_X)
+    VTY = Dense(512, activation="relu", name='VTY')(relu5_2_Y)
+    WTZ = Dense(512, activation="relu", name='WTZ')(relu5_3_Z)
+    UTXVTY = Multiply(name='UTXVTY')([UTX, VTY])
+    UTXWTZ = Multiply(name='UTXWTZ')([UTX, WTZ])
+    VTYWTZ = Multiply(name='VTYWTZ')([VTY, WTZ])
+    UTXVTYWTZ = Multiply(name='UTXVTYWTZ')([UTX, VTY, WTZ])
+    concat = Concatenate()([UTXVTY, UTXWTZ, VTYWTZ, UTXVTYWTZ])
+    # create output layers
+    out_layers = []
+    for idx, v in enumerate(num_classes):
+        out_layers.append(Dense(v, activation="softmax", name='out_level_' + str(idx))(concat))
+
+    # Build the model
+    model = Model(name='MLPH_model',
+                  inputs=in_layer,
+                  outputs=out_layers)
+    loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
+    if len(loss_weights) == 0:
+        loss_weights = [1 / len(num_classes) for x in num_classes]
+    optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
+    model.compile(optimizer=optimizer,
+                  loss=loss,
+                  loss_weights=loss_weights,
                   metrics=['accuracy'])
     return model
 
