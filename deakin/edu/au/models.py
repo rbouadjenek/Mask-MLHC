@@ -261,11 +261,11 @@ def get_MLPH_model(num_classes: list, image_size, learning_rate=1e-5, loss_weigh
     UTX = Dense(512, activation="relu", name='UTX')(relu5_1_X)
     VTY = Dense(512, activation="relu", name='VTY')(relu5_2_Y)
     WTZ = Dense(512, activation="relu", name='WTZ')(relu5_3_Z)
-    UTXVTY = Multiply(name='UTXVTY')([UTX, VTY])
-    UTXWTZ = Multiply(name='UTXWTZ')([UTX, WTZ])
-    VTYWTZ = Multiply(name='VTYWTZ')([VTY, WTZ])
-    UTXVTYWTZ = Multiply(name='UTXVTYWTZ')([UTX, VTY, WTZ])
-    concat = Concatenate()([UTXVTY, UTXWTZ, VTYWTZ, UTXVTYWTZ])
+    UTXoVTY = Multiply(name='UTXoVTY')([UTX, VTY])
+    UTXoWTZ = Multiply(name='UTXoWTZ')([UTX, WTZ])
+    VTYoWTZ = Multiply(name='VTYoWTZ')([VTY, WTZ])
+    UTXoVTYoWTZ = Multiply(name='UTXoVTYoWTZ')([UTX, VTY, WTZ])
+    concat = Concatenate()([UTXoVTY, UTXoWTZ, VTYoWTZ, UTXoVTYoWTZ])
     # create output layers
     out_layers = []
     for idx, v in enumerate(num_classes):
