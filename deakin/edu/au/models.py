@@ -33,9 +33,9 @@ class performance_callback(keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         y_pred = self.model.predict(self.X)
-        y_pred = get_pred_indexes(y_pred)
-        accuracy = metrics.get_accuracy(y_pred, self.y)
-        exact_match = metrics.get_exact_match(y_pred, self.y)
+        # y_pred = get_pred_indexes(y_pred)
+        accuracy = metrics.get_top_k_taxonomical_accuracy(self.y, y_pred)
+        exact_match = metrics.get_exact_match(self.y, y_pred)
         consistency = metrics.get_consistency(y_pred, self.taxo)
         print('-' * 100)
         print(f"epoch={epoch + 1}, ", end='')
@@ -47,15 +47,11 @@ class performance_callback(keras.callbacks.Callback):
         print('')
 
 
-def get_pred_indexes(y_pred):
-    y_pred_indexes = []
-    for pred in y_pred:
-        y_pred_indexes.append(np.argmax(pred, axis=1))
-    return y_pred_indexes
-
-
-def get_mout_model(num_classes: list, image_size, conv_base='vgg19',
-                   learning_rate=1e-5, loss_weights=[]):
+def get_mout_model(num_classes: list,
+                   image_size,
+                   conv_base='vgg19',
+                   learning_rate=1e-5,
+                   loss_weights=[]):
     # Conv base
     in_layer = Input(shape=image_size, name='main_input')
     conv_base = get_conv_base(conv_base)(in_layer)
@@ -80,8 +76,12 @@ def get_mout_model(num_classes: list, image_size, conv_base='vgg19',
     return model
 
 
-def get_BCNN1(num_classes: list, image_size, reverse=False, conv_base='vgg19',
-              learning_rate=1e-5, loss_weights=[]):
+def get_BCNN1(num_classes: list,
+              image_size,
+              reverse=False,
+              conv_base='vgg19',
+              learning_rate=1e-5,
+              loss_weights=[]):
     # Conv base
     in_layer = Input(shape=image_size, name='main_input')
     conv_base = get_conv_base(conv_base)(in_layer)
@@ -114,8 +114,12 @@ def get_BCNN1(num_classes: list, image_size, reverse=False, conv_base='vgg19',
     return model
 
 
-def get_BCNN2(num_classes: list, image_size, reverse=False, conv_base='vgg19',
-              learning_rate=1e-5, loss_weights=[]):
+def get_BCNN2(num_classes: list,
+              image_size,
+              reverse=False,
+              conv_base='vgg19',
+              learning_rate=1e-5,
+              loss_weights=[]):
     # Conv base
     in_layer = Input(shape=image_size, name='main_input')
     conv_base = get_conv_base(conv_base)(in_layer)
@@ -154,8 +158,11 @@ def get_BCNN2(num_classes: list, image_size, reverse=False, conv_base='vgg19',
     return model
 
 
-def get_mnets(num_classes: list, image_size, reverse=False, conv_base='vgg19',
-              learning_rate=1e-5, loss_weights=[]):
+def get_mnets(num_classes: list,
+              image_size,
+              conv_base='vgg19',
+              learning_rate=1e-5,
+              loss_weights=[]):
     in_layer = Input(shape=image_size, name='main_input')
     # Conv base
     conv_base_list = []
@@ -165,6 +172,7 @@ def get_mnets(num_classes: list, image_size, reverse=False, conv_base='vgg19',
         conv_base_list = [nin_model() for x in num_classes]
     out_layers = []
     for i in range(len(conv_base_list)):
+        conv_base_list[i]._name = 'conv_base' + str(i)
         conv_base_list[i] = conv_base_list[i](in_layer)
         conv_base_list[i] = Flatten()(conv_base_list[i])
         out_layers.append(Dense(num_classes[i], activation="softmax", name='out_level_' + str(i))(conv_base_list[i]))
@@ -204,6 +212,8 @@ class BaselineModel(Model):
                 child = parent
                 one_hot = np.zeros(len(row))
                 one_hot[child] = 1
+                # one_hot = np.random.uniform(low=1e-6, high=1e-5, size=len(row))
+                # one_hot[child] = 1 - (np.sum(one_hot) - one_hot[child])
                 out[i].append(one_hot)
         return out
 
@@ -232,7 +242,9 @@ class BaselineModel(Model):
 #                   metrics=['accuracy'])
 #     return model
 
-def get_Baseline_model(num_classes: list, image_size, taxonomy, conv_base='vgg19',
+def get_Baseline_model(num_classes: list,
+                       image_size,
+                       taxonomy, conv_base='vgg19',
                        learning_rate=1e-5):
     # Conv base
     in_layer = Input(shape=image_size, name='main_input')
@@ -252,7 +264,9 @@ def get_Baseline_model(num_classes: list, image_size, taxonomy, conv_base='vgg19
     return model
 
 
-def get_Classifier_model(num_classes, image_size, conv_base='vgg19',
+def get_Classifier_model(num_classes,
+                         image_size,
+                         conv_base='vgg19',
                          learning_rate=1e-5):
     # Conv base
     in_layer = Input(shape=image_size)
@@ -271,7 +285,10 @@ def get_Classifier_model(num_classes, image_size, conv_base='vgg19',
     return model
 
 
-def get_MLPH_model(num_classes: list, image_size, learning_rate=1e-5, loss_weights=[]):
+def get_MLPH_model(num_classes: list,
+                   image_size,
+                   learning_rate=1e-5,
+                   loss_weights=[]):
     # Conv base
     in_layer = Input(shape=image_size, name='main_input')
     conv_base = VGG19(include_top=False, weights="imagenet")
@@ -387,9 +404,12 @@ class Masked_Output(keras.layers.Layer):
         return cls(**config)
 
 
-def get_Masked_Output_Net(num_classes: list, image_size, taxonomy,
+def get_Masked_Output_Net(num_classes: list,
+                          image_size,
+                          taxonomy,
                           conv_base='vgg19',
-                          learning_rate=1e-5, loss_weights=[]):
+                          learning_rate=1e-5,
+                          loss_weights=[]):
     # Conv base
     in_layer = Input(shape=image_size, name='main_input')
     conv_base = get_conv_base(conv_base)(in_layer)
