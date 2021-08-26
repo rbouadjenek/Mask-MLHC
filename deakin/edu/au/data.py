@@ -159,10 +159,10 @@ class Stanford_Cars:
         filename = 'car_ims'
         print('Preparing dataset..')
         dataset_path = keras.utils.get_file(filename, train_data_url, untar=True)
-        train_csv_url = 'https://rbouadjenek.github.io/datasets/stanford_car_train_labels.txt'
-        train_label_path = keras.utils.get_file("stanford_car_train_labels.csv", train_csv_url)
-        test_csv_url = 'https://rbouadjenek.github.io/datasets/stanford_car_test_labels.txt'
-        test_label_path = keras.utils.get_file("stanford_car_test_labels.csv", test_csv_url)
+        train_csv_url = 'https://rbouadjenek.github.io/datasets/stanford_cars_train_labels.txt'
+        train_label_path = keras.utils.get_file("stanford_cars_train_labels.csv", train_csv_url)
+        test_csv_url = 'https://rbouadjenek.github.io/datasets/stanford_cars_test_labels.txt'
+        test_label_path = keras.utils.get_file("stanford_cars_test_labels.csv", test_csv_url)
         X_train, class_train_level_0, y_train_level_0, class_train_level_1, y_train_level_1, class_train_level_2, y_train_level_2, train_filenames = load_dataset(
             labels_path=train_label_path, images_path=dataset_path,
             image_size=image_size)
