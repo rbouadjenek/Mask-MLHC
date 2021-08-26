@@ -154,7 +154,6 @@ def load_dataset(labels_path, images_path, image_size):
 class Stanford_Cars:
 
     def __init__(self, image_size):
-        self.image_size = image_size
         train_data_url = 'http://ai.stanford.edu/~jkrause/car196/car_ims.tgz'
         filename = 'car_ims'
         print('Preparing dataset..')
@@ -165,11 +164,11 @@ class Stanford_Cars:
         test_label_path = keras.utils.get_file("stanford_car_test_labels.csv", test_csv_url)
         X_train, class_train_level_0, y_train_level_0, class_train_level_1, y_train_level_1, class_train_level_2, y_train_level_2 = load_dataset(
             labels_path=train_label_path, images_path=dataset_path,
-            image_size=self.image_size)
+            image_size=image_size)
         X_test, class_test_level_0, y_test_level_0, class_test_level_1, y_test_level_1, class_test_level_2, y_test_level_2 = load_dataset(
             labels_path=test_label_path,
             images_path=dataset_path,
-            image_size=self.image_size)
+            image_size=image_size)
 
         self.X_train = X_train
         self.X_val = X_test[:2500]
@@ -183,6 +182,7 @@ class Stanford_Cars:
         self.num_classes_l1 = len(set([v[0] for v in y_train_level_1]))
         self.num_classes_l2 = len(set([v[0] for v in y_train_level_2]))
 
+        self.image_size = self.X_train[0].shape
         # Encoding the taxonomy
         m0 = [[0 for x in range(self.num_classes_l1)] for y in range(self.num_classes_l0)]
         for (t, c) in zip(y_train_level_0, y_train_level_1):
