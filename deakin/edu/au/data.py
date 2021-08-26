@@ -218,7 +218,7 @@ class Stanford_Cars:
         return draw_taxonomy(self.taxonomy, self.labels)
 
 
-def draw_taxonomy(taxonomy, LABELS):
+def draw_taxonomy(taxonomy, labels):
     """
     This method draws the taxonomy using the graphviz library.
     :return:
@@ -229,13 +229,13 @@ def draw_taxonomy(taxonomy, LABELS):
     u.attr(rankdir="LR")
 
     for i in range(len(taxonomy[0])):
-        u.edge('root', LABELS[0][i], LABELS[0][i])
+        u.edge('root', labels[0][i], labels[0][i])
 
     for l in range(len(taxonomy)):
         for i in range(len(taxonomy[l])):
             for j in range(len(taxonomy[l][i])):
                 if taxonomy[l][i][j] == 1:
-                    u.edge(LABELS[l][i], LABELS[l + 1][j])
+                    u.edge(labels[l][i], labels[l + 1][j])
 
     return u
 
