@@ -342,7 +342,7 @@ class Masked_Output(keras.layers.Layer):
 
         # Estimate the size of each output using the taxonomy.
         self.size_outputs = []
-        self.size_outputs.append(len(self.M))
+        self.size_outputs.append(len(self.M[0]))
         for m in self.M:
             self.size_outputs.append(len(m[0]))
             # Create parameters W and B of the output.
