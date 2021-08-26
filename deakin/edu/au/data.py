@@ -145,10 +145,11 @@ def load_dataset(labels_path, images_path, image_size):
                 dataset_list[i] = list(img[0])
                 break
     dataset_np = np.stack(dataset_list)
-    dataset_np, label_level_0, class_level_0, label_level_1, class_level_1, label_level_2, class_level_2 = shuffle(
-        dataset_np, label_level_0, class_level_0, label_level_1, class_level_1, label_level_2, class_level_2,
+    dataset_np = dataset_np.astype(int)
+    dataset_np, label_level_0, class_level_0, label_level_1, class_level_1, label_level_2, class_level_2, filenames = shuffle(
+        dataset_np, label_level_0, class_level_0, label_level_1, class_level_1, label_level_2, class_level_2, filenames,
         random_state=0)
-    return dataset_np, label_level_0, class_level_0, label_level_1, class_level_1, label_level_2, class_level_2
+    return dataset_np, label_level_0, class_level_0, label_level_1, class_level_1, label_level_2, class_level_2, filenames
 
 
 class Stanford_Cars:
@@ -162,14 +163,16 @@ class Stanford_Cars:
         train_label_path = keras.utils.get_file("stanford_car_train_labels.csv", train_csv_url)
         test_csv_url = 'https://rbouadjenek.github.io/datasets/stanford_car_test_labels.txt'
         test_label_path = keras.utils.get_file("stanford_car_test_labels.csv", test_csv_url)
-        X_train, class_train_level_0, y_train_level_0, class_train_level_1, y_train_level_1, class_train_level_2, y_train_level_2 = load_dataset(
+        X_train, class_train_level_0, y_train_level_0, class_train_level_1, y_train_level_1, class_train_level_2, y_train_level_2, train_filenames = load_dataset(
             labels_path=train_label_path, images_path=dataset_path,
             image_size=image_size)
-        X_test, class_test_level_0, y_test_level_0, class_test_level_1, y_test_level_1, class_test_level_2, y_test_level_2 = load_dataset(
+        X_test, class_test_level_0, y_test_level_0, class_test_level_1, y_test_level_1, class_test_level_2, y_test_level_2, test_filenames = load_dataset(
             labels_path=test_label_path,
             images_path=dataset_path,
             image_size=image_size)
 
+        self.train_filenames = train_filenames
+        self.test_filenames = test_filenames
         self.X_train = X_train
         self.X_val = X_test[:2500]
         self.X_test = X_test[2500:]
