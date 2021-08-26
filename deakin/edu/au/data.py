@@ -28,8 +28,9 @@ from graphviz import Digraph
 #                                85: 8, 86: 1, 87: 0, 88: 6, 89: 8, 90: 8, 91: 2, 92: 5, 93: 6, 94: 0, 95: 6, 96: 4,
 #                                97: 6, 98: 3, 99: 2}
 
-mapping_coarse_to_top = {0: 0, 1: 0, 2: 0, 3: 1, 4: 0, 5: 1, 6: 1, 7: 0, 8: 0, 9: 1, 10: 1, 11: 0, 12: 0, 13: 0, 14: 0,
-                         15: 0, 16: 0, 17: 0, 18: 1, 19: 1}
+cifar100_mapping_coarse_to_top = {0: 0, 1: 0, 2: 0, 3: 1, 4: 0, 5: 1, 6: 1, 7: 0, 8: 0, 9: 1, 10: 1, 11: 0, 12: 0,
+                                  13: 0, 14: 0,
+                                  15: 0, 16: 0, 17: 0, 18: 1, 19: 1}
 
 
 def map_fine_to_cluster_cifar100(y, mapping):
@@ -78,8 +79,8 @@ class Cifar100:
         (X_c_train, y_c_train), (X_c_test, y_c_test) = cifar100.load_data(label_mode='coarse')
         (X_f_train, y_f_train), (X_f_test, y_f_test) = cifar100.load_data(label_mode='fine')
 
-        y_top_train = map_fine_to_cluster_cifar100(y_c_train, mapping_coarse_to_top)
-        y_top_test = map_fine_to_cluster_cifar100(y_c_test, mapping_coarse_to_top)
+        y_top_train = map_fine_to_cluster_cifar100(y_c_train, cifar100_mapping_coarse_to_top)
+        y_top_test = map_fine_to_cluster_cifar100(y_c_test, cifar100_mapping_coarse_to_top)
 
         self.X_train = X_f_train
         self.X_val = X_f_test[:5000]
