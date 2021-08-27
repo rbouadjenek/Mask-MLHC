@@ -115,8 +115,8 @@ class Cifar100:
             y_top.append(c)
         return np.array(y_top)
 
-    def draw_taxonomy(self):
-        return draw_taxonomy(self.taxonomy, self.labels)
+    def draw_taxonomy(self, filename):
+        return draw_taxonomy(self.taxonomy, filename, self.labels)
 
 
 def load_dataset(labels_path, images_path, image_size):
@@ -218,12 +218,14 @@ class Stanford_Cars:
             labels[idx[0]] = class_train_level_2[i]
         self.labels.append(labels)
 
-    def draw_taxonomy(self):
-        return draw_taxonomy(self.taxonomy, self.labels)
-    
+    def draw_taxonomy(self, filename):
+        return draw_taxonomy(self.taxonomy, filename, self.labels)
+
+
 class CU_Birds_200_2011:
 
     def __init__(self, image_size):
+        self.name = 'CU_Birds_200_2011'
         train_data_url = 'http://206.12.93.90:8080/CUB_200_2011/CUB_200_2011.tgz'
         filename = 'CUB_200_2011'
         print('Preparing dataset...')
@@ -286,17 +288,17 @@ class CU_Birds_200_2011:
             labels[idx[0]] = class_train_level_2[i]
         self.labels.append(labels)
 
-    def draw_taxonomy(self):
-        return draw_taxonomy(self.taxonomy, self.labels)
+    def draw_taxonomy(self, filename):
+        return draw_taxonomy(self.taxonomy, filename, self.labels)
 
 
-def draw_taxonomy(taxonomy, labels):
+def draw_taxonomy(taxonomy, filename, labels):
     """
     This method draws the taxonomy using the graphviz library.
     :return:
     :rtype: Digraph
      """
-    u = Digraph('unix', node_attr={'color': 'lightblue2', 'style': 'filled'}, strict=True)
+    u = Digraph('unix', filename=filename, node_attr={'color': 'lightblue2', 'style': 'filled'}, strict=True)
     u.attr(size='6,6')
     u.attr(rankdir="LR")
 

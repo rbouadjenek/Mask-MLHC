@@ -18,7 +18,7 @@ from tensorflow import keras
 from tensorflow.keras.layers import Input, Dropout, Flatten, Dense, Activation, Lambda, Conv2D, MaxPool2D, \
     GlobalAveragePooling2D, Multiply, Concatenate
 from tensorflow.keras.models import Model, clone_model
-from tensorflow.keras.applications import VGG19
+from tensorflow.keras.applications import VGG19, VGG16, ResNet50, Xception
 from deakin.edu.au.data import Cifar100
 import deakin.edu.au.metrics as metrics
 import numpy as np
@@ -51,10 +51,12 @@ def get_mout_model(num_classes: list,
                    image_size,
                    conv_base='vgg19',
                    learning_rate=1e-5,
-                   loss_weights=[]):
+                   loss_weights=[],
+                   lam=0):
     # Conv base
+    regularizer = tf.keras.regularizers.l2(lam)
     in_layer = Input(shape=image_size, name='main_input')
-    conv_base = get_conv_base(conv_base)(in_layer)
+    conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
     conv_base = Flatten()(conv_base)
     # create output layers
     out_layers = []
@@ -81,10 +83,12 @@ def get_BCNN1(num_classes: list,
               reverse=False,
               conv_base='vgg19',
               learning_rate=1e-5,
-              loss_weights=[]):
+              loss_weights=[],
+              lam=0):
     # Conv base
+    regularizer = tf.keras.regularizers.l2(lam)
     in_layer = Input(shape=image_size, name='main_input')
-    conv_base = get_conv_base(conv_base)(in_layer)
+    conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
     conv_base = Flatten()(conv_base)
     # create output layers
     out_layers = []
@@ -119,10 +123,12 @@ def get_BCNN2(num_classes: list,
               reverse=False,
               conv_base='vgg19',
               learning_rate=1e-5,
-              loss_weights=[]):
+              loss_weights=[],
+              lam=0):
     # Conv base
+    regularizer = tf.keras.regularizers.l2(lam)
     in_layer = Input(shape=image_size, name='main_input')
-    conv_base = get_conv_base(conv_base)(in_layer)
+    conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
     conv_base = Flatten()(conv_base)
     # create output layers
     logits_layers = []
@@ -162,14 +168,12 @@ def get_mnets(num_classes: list,
               image_size,
               conv_base='vgg19',
               learning_rate=1e-5,
-              loss_weights=[]):
-    in_layer = Input(shape=image_size, name='main_input')
+              loss_weights=[],
+              lam=0):
     # Conv base
-    conv_base_list = []
-    if conv_base.lower() == 'vgg19':
-        conv_base_list = [VGG19(include_top=False, weights="imagenet") for x in num_classes]
-    elif conv_base.lower() == 'nin':
-        conv_base_list = [nin_model() for x in num_classes]
+    regularizer = tf.keras.regularizers.l2(lam)
+    in_layer = Input(shape=image_size, name='main_input')
+    conv_base_list = [get_conv_base(conv_base, regularizer=regularizer) for x in num_classes]
     out_layers = []
     for i in range(len(conv_base_list)):
         conv_base_list[i]._name = 'conv_base' + str(i)
@@ -245,10 +249,12 @@ class BaselineModel(Model):
 def get_Baseline_model(num_classes: list,
                        image_size,
                        taxonomy, conv_base='vgg19',
-                       learning_rate=1e-5):
+                       learning_rate=1e-5,
+                       lam=0):
     # Conv base
+    regularizer = tf.keras.regularizers.l2(lam)
     in_layer = Input(shape=image_size, name='main_input')
-    conv_base = get_conv_base(conv_base)(in_layer)
+    conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
     conv_base = Flatten()(conv_base)
     # create output layers
     out_layer = Dense(num_classes[-1], activation="softmax", name='output')(conv_base)
@@ -267,13 +273,15 @@ def get_Baseline_model(num_classes: list,
 def get_Classifier_model(num_classes,
                          image_size,
                          conv_base='vgg19',
-                         learning_rate=1e-5):
+                         learning_rate=1e-5,
+                         lam=0):
     # Conv base
+    regularizer = tf.keras.regularizers.l2(lam)
     in_layer = Input(shape=image_size)
-    conv_base = get_conv_base(conv_base)(in_layer)
+    conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
     conv_base = Flatten()(conv_base)
     # create output layers
-    out_layer = Dense(num_classes, activation="softmax")(conv_base)
+    out_layer = Dense(num_classes, kernel_regularizer=regularizer, activation="softmax")(conv_base)
     # Build the model
     model = Model(inputs=in_layer,
                   outputs=out_layer)
@@ -288,10 +296,12 @@ def get_Classifier_model(num_classes,
 def get_MLPH_model(num_classes: list,
                    image_size,
                    learning_rate=1e-5,
-                   loss_weights=[]):
+                   loss_weights=[],
+                   lam=0):
     # Conv base
+    regularizer = tf.keras.regularizers.l2(lam)
     in_layer = Input(shape=image_size, name='main_input')
-    conv_base = VGG19(include_top=False, weights="imagenet")
+    conv_base = get_conv_base('vgg19', regularizer=regularizer)
     # conv_base.summary()
     layer_outputs = [conv_base.get_layer("block5_conv1").output,
                      conv_base.get_layer("block5_conv2").output,
@@ -410,10 +420,12 @@ def get_Masked_Output_Net(num_classes: list,
                           taxonomy,
                           conv_base='vgg19',
                           learning_rate=1e-5,
-                          loss_weights=[]):
+                          loss_weights=[],
+                          lam=0):
     # Conv base
+    regularizer = tf.keras.regularizers.l2(lam)
     in_layer = Input(shape=image_size, name='main_input')
-    conv_base = get_conv_base(conv_base)(in_layer)
+    conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
     conv_base = Flatten()(conv_base)
     # outputs
     outputs = Masked_Output(taxonomy)(conv_base)
@@ -467,11 +479,24 @@ class nin_model(Model):
         return GlobalAveragePooling2D()(x)
 
 
-def get_conv_base(conv_base):
+def get_conv_base(conv_base, regularizer=tf.keras.regularizers.l2(0)):
     if conv_base.lower() == 'vgg19':
         conv_base = VGG19(include_top=False, weights="imagenet")
+    elif conv_base.lower() == 'vgg16':
+        conv_base = VGG16(include_top=False, weights="imagenet")
     elif conv_base.lower() == 'nin':
         conv_base = nin_model()
+    elif conv_base.lower() == 'resnet50':
+        conv_base = ResNet50(include_top=False, weights="imagenet")
+    elif conv_base.lower() == 'xception':
+        conv_base = Xception(include_top=False, weights="imagenet")
+    else:
+        pass
+    for layer in conv_base.layers:
+        for attr in ['kernel_regularizer']:
+            if hasattr(layer, attr):
+                setattr(layer, attr, regularizer)
+
     return conv_base
 
 
