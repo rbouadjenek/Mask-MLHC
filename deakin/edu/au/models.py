@@ -342,7 +342,7 @@ class Masked_Output(keras.layers.Layer):
 
         # Estimate the size of each output using the taxonomy.
         self.size_outputs = []
-        self.size_outputs.append(len(self.M))
+        self.size_outputs.append(len(self.M[0]))
         for m in self.M:
             self.size_outputs.append(len(m[0]))
             # Create parameters W and B of the output.
@@ -350,20 +350,21 @@ class Masked_Output(keras.layers.Layer):
         self.b = []
         #         self.W_mask = []
         #         self.b_mask = []
+        i = 0
         for size_output in self.size_outputs:
-            self.W.append(self.add_weight(shape=(input_dim, size_output),
+            self.W.append(self.add_weight(name='W_' + str(i), shape=(input_dim, size_output),
                                           initializer="random_normal",
                                           trainable=True))
-            self.b.append(self.add_weight(shape=(size_output,),
+            self.b.append(self.add_weight(name='B_' + str(i), shape=(size_output,),
                                           initializer="zeros",
                                           trainable=True))
-
-    #             self.W_mask.append(self.add_weight(shape=(size_output, size_output),
-    #                                        initializer="random_normal",
-    #                                        trainable=True))
-    #             self.b_mask.append(self.add_weight(shape=(size_output,),
-    #                                        initializer="zeros",
-    #                                        trainable=True))
+            #             self.W_mask.append(self.add_weight(shape=(size_output, size_output),
+            #                                        initializer="random_normal",
+            #                                        trainable=True))
+            #             self.b_mask.append(self.add_weight(shape=(size_output,),
+            #                                        initializer="zeros",
+            #                                        trainable=True))
+            i += 1
 
     def call(self, inputs):
         # Compute the logits.
@@ -390,14 +391,14 @@ class Masked_Output(keras.layers.Layer):
         return out
 
     def get_config(self):
-        config = {'M': self.M,
-                  'W': self.W,
-                  'b': self.b,
-                  #                   'W_mask': self.W_mask,
-                  #                   'b_mask': self.b_mask
-                  }
-        base_config = super(Masked_Output, self).get_config()
-        return base_config
+        config = super(Masked_Output, self).get_config()
+        # config.update({'M': self.M,
+        #                'W': self.W,
+        #                'b': self.b,
+        #                #                   'W_mask': self.W_mask,
+        #                #                   'b_mask': self.b_mask
+        #                })
+        return config
 
     @classmethod
     def from_config(cls, config):

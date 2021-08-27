@@ -99,6 +99,7 @@ class Cifar100:
     def map_fine_to_cluster_cifar100(self, y, mapping):
         """
         This function is only used to create label for clusters if used.  Clusters are obtained from:
+
         :param y:
         :type y:
         :return:
