@@ -59,7 +59,6 @@ class Cifar100:
 
     def __init__(self):
         """
-
         :param type: to indicate if to use coarse classes as given in the cifar100 dataset or use clusters.
         :type type: str
         """
@@ -157,7 +156,7 @@ class Stanford_Cars:
     def __init__(self, image_size):
         train_data_url = 'http://ai.stanford.edu/~jkrause/car196/car_ims.tgz'
         filename = 'car_ims'
-        print('Preparing dataset..')
+        print('Preparing dataset...')
         dataset_path = keras.utils.get_file(filename, train_data_url, untar=True)
         train_csv_url = 'https://rbouadjenek.github.io/datasets/stanford_cars_train_labels.txt'
         train_label_path = keras.utils.get_file("stanford_cars_train_labels.csv", train_csv_url)
@@ -180,6 +179,74 @@ class Stanford_Cars:
         self.y_train = [y_train_level_0, y_train_level_1, y_train_level_2]
         self.y_val = [y_test_level_0[:2500], y_test_level_1[:2500], y_test_level_2[:2500]]
         self.y_test = [y_test_level_0[2500:], y_test_level_1[2500:], y_test_level_2[2500:]]
+
+        self.num_classes_l0 = len(set([v[0] for v in y_train_level_0]))
+        self.num_classes_l1 = len(set([v[0] for v in y_train_level_1]))
+        self.num_classes_l2 = len(set([v[0] for v in y_train_level_2]))
+
+        self.image_size = self.X_train[0].shape
+        # Encoding the taxonomy
+        m0 = [[0 for x in range(self.num_classes_l1)] for y in range(self.num_classes_l0)]
+        for (t, c) in zip(y_train_level_0, y_train_level_1):
+            t = t[0]
+            c = c[0]
+            m0[t][c] = 1
+
+        m1 = [[0 for x in range(self.num_classes_l2)] for y in range(self.num_classes_l1)]
+        for (t, c) in zip(y_train_level_1, y_train_level_2):
+            t = t[0]
+            c = c[0]
+            m1[t][c] = 1
+        self.taxonomy = [m0, m1]
+
+        # Build the labels
+        self.labels = []
+        labels = ['' for x in range(self.num_classes_l0)]
+        for i, idx in enumerate(y_train_level_0):
+            labels[idx[0]] = class_train_level_0[i]
+        self.labels.append(labels)
+
+        labels = ['' for x in range(self.num_classes_l1)]
+        for i, idx in enumerate(y_train_level_1):
+            labels[idx[0]] = class_train_level_1[i]
+        self.labels.append(labels)
+
+        labels = ['' for x in range(self.num_classes_l2)]
+        for i, idx in enumerate(y_train_level_2):
+            labels[idx[0]] = class_train_level_2[i]
+        self.labels.append(labels)
+
+    def draw_taxonomy(self):
+        return draw_taxonomy(self.taxonomy, self.labels)
+    
+class CU_Birds_200_2011:
+
+    def __init__(self, image_size):
+        train_data_url = 'http://206.12.93.90:8080/CUB_200_2011/CUB_200_2011.tgz'
+        filename = 'CUB_200_2011'
+        print('Preparing dataset...')
+        dataset_path = keras.utils.get_file(filename, train_data_url, untar=True)
+        train_csv_url = 'https://docs.google.com/uc?export=download&id=1aY6MBMj42jz3OgetWYzTF3Zil4kRs4H0'
+        train_label_path = keras.utils.get_file("cu_birds_train_labels.csv", train_csv_url)
+        test_csv_url = 'https://docs.google.com/uc?export=download&id=1qoYtxkLJpt9Pn6dtwD7lGRYcO1yb1vfN'
+        test_label_path = keras.utils.get_file("cu_birds_test_labels.csv", test_csv_url)
+        X_train, class_train_level_0, y_train_level_0, class_train_level_1, y_train_level_1, class_train_level_2, y_train_level_2, train_filenames = load_dataset(
+            labels_path=train_label_path, images_path=dataset_path,
+            image_size=image_size)
+        X_test, class_test_level_0, y_test_level_0, class_test_level_1, y_test_level_1, class_test_level_2, y_test_level_2, test_filenames = load_dataset(
+            labels_path=test_label_path,
+            images_path=dataset_path,
+            image_size=image_size)
+
+        self.train_filenames = train_filenames
+        self.test_filenames = test_filenames
+        self.X_train = X_train
+        self.X_val = X_test[:2000]
+        self.X_test = X_test[2000:]
+
+        self.y_train = [y_train_level_0, y_train_level_1, y_train_level_2]
+        self.y_val = [y_test_level_0[:2000], y_test_level_1[:2000], y_test_level_2[:2000]]
+        self.y_test = [y_test_level_0[2000:], y_test_level_1[2000:], y_test_level_2[2000:]]
 
         self.num_classes_l0 = len(set([v[0] for v in y_train_level_0]))
         self.num_classes_l1 = len(set([v[0] for v in y_train_level_1]))
@@ -244,7 +311,7 @@ def draw_taxonomy(taxonomy, labels):
 
 
 if __name__ == '__main__':
-    dataset = Stanford_Cars(image_size=(32, 32))
+    dataset = CU_Birds_200_2011(image_size=(32, 32))
     print(dataset.num_classes_l0)
     print(dataset.num_classes_l1)
     print(dataset.num_classes_l2)
