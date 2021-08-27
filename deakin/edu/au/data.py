@@ -62,6 +62,7 @@ class Cifar100:
         :param type: to indicate if to use coarse classes as given in the cifar100 dataset or use clusters.
         :type type: str
         """
+        self.name = 'cifar100'
         (X_c_train, y_c_train), (X_c_test, y_c_test) = cifar100.load_data(label_mode='coarse')
         (X_f_train, y_f_train), (X_f_test, y_f_test) = cifar100.load_data(label_mode='fine')
 
@@ -153,6 +154,7 @@ def load_dataset(labels_path, images_path, image_size):
 class Stanford_Cars:
 
     def __init__(self, image_size):
+        self.name = 'stanford_cars'
         train_data_url = 'http://ai.stanford.edu/~jkrause/car196/car_ims.tgz'
         filename = 'car_ims'
         print('Preparing dataset...')
@@ -225,9 +227,9 @@ class CU_Birds_200_2011:
         filename = 'CUB_200_2011'
         print('Preparing dataset...')
         dataset_path = keras.utils.get_file(filename, train_data_url, untar=True)
-        train_csv_url = 'https://docs.google.com/uc?export=download&id=1aY6MBMj42jz3OgetWYzTF3Zil4kRs4H0'
+        train_csv_url = 'https://rbouadjenek.github.io/datasets/cu_birds_train_labels.csv'
         train_label_path = keras.utils.get_file("cu_birds_train_labels.csv", train_csv_url)
-        test_csv_url = 'https://docs.google.com/uc?export=download&id=1qoYtxkLJpt9Pn6dtwD7lGRYcO1yb1vfN'
+        test_csv_url = 'https://rbouadjenek.github.io/datasets/cu_birds_test_labels.csv'
         test_label_path = keras.utils.get_file("cu_birds_test_labels.csv", test_csv_url)
         X_train, class_train_level_0, y_train_level_0, class_train_level_1, y_train_level_1, class_train_level_2, y_train_level_2, train_filenames = load_dataset(
             labels_path=train_label_path, images_path=dataset_path,
