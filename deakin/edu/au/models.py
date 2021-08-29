@@ -16,13 +16,14 @@
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 from tensorflow import keras
 from tensorflow.keras.layers import Input, Dropout, Flatten, Dense, Activation, Lambda, Conv2D, MaxPool2D, \
-    GlobalAveragePooling2D, Multiply, Concatenate
+    GlobalAveragePooling2D, Multiply, Concatenate, experimental
 from tensorflow.keras.models import Model, clone_model
 from tensorflow.keras.applications import VGG19, VGG16, ResNet50, Xception
 from deakin.edu.au.data import Cifar100
 import deakin.edu.au.metrics as metrics
 import numpy as np
 import tensorflow as tf
+from keras.applications.efficientnet import EfficientNetB0
 
 
 class performance_callback(keras.callbacks.Callback):
@@ -278,6 +279,7 @@ def get_Classifier_model(num_classes,
     # Conv base
     regularizer = tf.keras.regularizers.l2(lam)
     in_layer = Input(shape=image_size)
+    # rescale = experimental.preprocessing.Rescaling(1. / 255)(in_layer)
     conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
     conv_base = Flatten()(conv_base)
     # create output layers
@@ -348,43 +350,51 @@ class Masked_Output(keras.layers.Layer):
 
     def build(self, input_shape):
         """Creates weights."""
-        input_dim = input_shape[1]
-
         # Estimate the size of each output using the taxonomy.
         self.size_outputs = []
         self.size_outputs.append(len(self.M[0]))
         for m in self.M:
             self.size_outputs.append(len(m[0]))
-            # Create parameters W and B of the output.
+        # Estimate the input size
+        input_dims = []
+        if isinstance(input_shape, list):
+            for i in range(len(self.size_outputs)):
+                input_dims.append(input_shape[i][1])
+        else:
+            for i in range(len(self.size_outputs)):
+                input_dims.append(input_shape[1])
+        # Create parameters W and B of the output.
         self.W = []
         self.b = []
-        #         self.W_mask = []
-        #         self.b_mask = []
-        i = 0
-        for size_output in self.size_outputs:
+        # self.W_mask = []
+        # self.b_mask = []
+        for i, (input_dim, size_output) in enumerate(zip(input_dims, self.size_outputs)):
             self.W.append(self.add_weight(name='W_' + str(i), shape=(input_dim, size_output),
                                           initializer="random_normal",
                                           trainable=True))
             self.b.append(self.add_weight(name='B_' + str(i), shape=(size_output,),
                                           initializer="zeros",
                                           trainable=True))
-            #             self.W_mask.append(self.add_weight(shape=(size_output, size_output),
-            #                                        initializer="random_normal",
-            #                                        trainable=True))
-            #             self.b_mask.append(self.add_weight(shape=(size_output,),
-            #                                        initializer="zeros",
-            #                                        trainable=True))
-            i += 1
+            # self.W_mask.append(self.add_weight(shape=(size_output, size_output),
+            #                            initializer="random_normal",
+            #                            trainable=True))
+            # self.b_mask.append(self.add_weight(shape=(size_output,),
+            #                            initializer="zeros",
+            #                            trainable=True))
 
     def call(self, inputs):
-        # Compute the logits.
+        # Estimate the inputs.
+        if not isinstance(inputs, list):
+            inputs = [inputs for x in range(len(self.size_outputs))]
+
+            # Compute the logits.
         z_list = []
-        #         z_mask_list = []
+        # z_mask_list = []
 
         for i in range(len(self.size_outputs)):
-            z = tf.matmul(inputs, self.W[i]) + self.b[i]
+            z = tf.matmul(inputs[i], self.W[i]) + self.b[i]
             z_list.append(z)
-        #             z_mask_list.append(tf.matmul(tf.nn.relu(z), self.W_mask[i]) + self.b_mask[i])
+            # z_mask_list.append(tf.matmul(tf.nn.relu(z), self.W_mask[i]) + self.b_mask[i])
         # Compute the masks.
         masks = []
         masks.append(tf.matmul(tf.nn.softmax(z_list[1]), tf.transpose(self.M[0])))
@@ -421,14 +431,25 @@ def get_Masked_Output_Net(num_classes: list,
                           conv_base='vgg19',
                           learning_rate=1e-5,
                           loss_weights=[],
+                          mnets=False,
                           lam=0):
     # Conv base
     regularizer = tf.keras.regularizers.l2(lam)
     in_layer = Input(shape=image_size, name='main_input')
-    conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
-    conv_base = Flatten()(conv_base)
-    # outputs
-    outputs = Masked_Output(taxonomy)(conv_base)
+    if not mnets:
+        conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
+        conv_base = Flatten()(conv_base)
+        # outputs
+        outputs = Masked_Output(taxonomy)(conv_base)
+    else:
+        conv_base_list = [get_conv_base(conv_base, regularizer=regularizer) for x in num_classes]
+        for i in range(len(conv_base_list)):
+            conv_base_list[i]._name = 'conv_base' + str(i)
+            conv_base_list[i] = conv_base_list[i](in_layer)
+            conv_base_list[i] = Flatten()(conv_base_list[i])
+        # outputs
+        outputs = Masked_Output(taxonomy)(conv_base_list)
+
     # Build the model
     model = Model(name='Masked_Output_Net',
                   inputs=in_layer,
@@ -490,8 +511,10 @@ def get_conv_base(conv_base, regularizer=tf.keras.regularizers.l2(0)):
         conv_base = ResNet50(include_top=False, weights="imagenet")
     elif conv_base.lower() == 'xception':
         conv_base = Xception(include_top=False, weights="imagenet")
+    elif conv_base.lower() == 'efficientnetb0':
+        conv_base = EfficientNetB0(weights='imagenet', include_top=False)
     else:
-        pass
+        return None
     for layer in conv_base.layers:
         for attr in ['kernel_regularizer']:
             if hasattr(layer, attr):
