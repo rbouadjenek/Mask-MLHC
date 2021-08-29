@@ -444,7 +444,7 @@ def get_Masked_Output_Net(num_classes: list,
     else:
         conv_base_list = [get_conv_base(conv_base, regularizer=regularizer) for x in num_classes]
         for i in range(len(conv_base_list)):
-            conv_base_list[i]._name = 'conv_base' + str(i)
+            conv_base_list[i]._name = 'conv_base_mcnn_' + str(i)
             conv_base_list[i] = conv_base_list[i](in_layer)
             conv_base_list[i] = Flatten()(conv_base_list[i])
         # outputs
