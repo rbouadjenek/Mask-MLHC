@@ -82,7 +82,7 @@ class Cifar100:
         self.num_classes_l0 = len(set([v[0] for v in y_top_train]))
         self.num_classes_l1 = len(set([v[0] for v in y_c_train]))
         self.num_classes_l2 = len(set([v[0] for v in y_f_train]))
-
+        self.num_classes = [self.num_classes_l0, self.num_classes_l1, self.num_classes_l2]
         # Encoding the taxonomy
         m0 = [[0 for x in range(self.num_classes_l1)] for y in range(self.num_classes_l0)]
         for (t, c) in zip(y_top_train, y_c_train):
@@ -173,18 +173,20 @@ class Stanford_Cars:
             image_size=image_size)
 
         self.train_filenames = train_filenames
-        self.test_filenames = test_filenames
+        self.val_filenames = test_filenames[:4020]
+        self.test_filenames = test_filenames[4020:]
         self.X_train = X_train
-        self.X_val = X_test[:2500]
-        self.X_test = X_test[2500:]
+        self.X_val = X_test[:4020]
+        self.X_test = X_test[4020:]
 
         self.y_train = [y_train_level_0, y_train_level_1, y_train_level_2]
-        self.y_val = [y_test_level_0[:2500], y_test_level_1[:2500], y_test_level_2[:2500]]
-        self.y_test = [y_test_level_0[2500:], y_test_level_1[2500:], y_test_level_2[2500:]]
+        self.y_val = [y_test_level_0[:4020], y_test_level_1[:4020], y_test_level_2[:4020]]
+        self.y_test = [y_test_level_0[4020:], y_test_level_1[4020:], y_test_level_2[4020:]]
 
         self.num_classes_l0 = len(set([v[0] for v in y_train_level_0]))
         self.num_classes_l1 = len(set([v[0] for v in y_train_level_1]))
         self.num_classes_l2 = len(set([v[0] for v in y_train_level_2]))
+        self.num_classes = [self.num_classes_l0, self.num_classes_l1, self.num_classes_l2]
 
         self.image_size = self.X_train[0].shape
         # Encoding the taxonomy
@@ -243,18 +245,20 @@ class CU_Birds_200_2011:
             image_size=image_size)
 
         self.train_filenames = train_filenames
-        self.test_filenames = test_filenames
+        self.val_filenames = test_filenames[:3000]
+        self.test_filenames = test_filenames[3000:]
         self.X_train = X_train
-        self.X_val = X_test[:2000]
-        self.X_test = X_test[2000:]
+        self.X_val = X_test[:3000]
+        self.X_test = X_test[3000:]
 
         self.y_train = [y_train_level_0, y_train_level_1, y_train_level_2]
-        self.y_val = [y_test_level_0[:2000], y_test_level_1[:2000], y_test_level_2[:2000]]
-        self.y_test = [y_test_level_0[2000:], y_test_level_1[2000:], y_test_level_2[2000:]]
+        self.y_val = [y_test_level_0[:3000], y_test_level_1[:3000], y_test_level_2[:3000]]
+        self.y_test = [y_test_level_0[3000:], y_test_level_1[3000:], y_test_level_2[3000:]]
 
         self.num_classes_l0 = len(set([v[0] for v in y_train_level_0]))
         self.num_classes_l1 = len(set([v[0] for v in y_train_level_1]))
         self.num_classes_l2 = len(set([v[0] for v in y_train_level_2]))
+        self.num_classes = [self.num_classes_l0, self.num_classes_l1, self.num_classes_l2]
 
         self.image_size = self.X_train[0].shape
         # Encoding the taxonomy
