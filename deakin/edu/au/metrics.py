@@ -19,6 +19,11 @@ from sklearn.metrics import accuracy_score
 from scipy.stats import hmean
 from sklearn.metrics import top_k_accuracy_score
 
+def one_hot(y):
+    n_values = np.max(y) + 1
+    y_new = np.eye(n_values)[y[:]]
+    return y_new
+
 
 def get_top_k_accuracy_score(y_true: list, y_pred: list, k=1):
     if len(list(y_pred[0])) == 2:
