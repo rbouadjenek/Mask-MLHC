@@ -24,13 +24,16 @@ import deakin.edu.au.metrics as metrics
 import numpy as np
 import tensorflow as tf
 from keras.applications.efficientnet import EfficientNetB0
+from prettytable import PrettyTable
 
 
 class performance_callback(keras.callbacks.Callback):
-    def __init__(self, X, y, taxo):
+    def __init__(self, X, y, taxo, tree, name=None):
         self.X = X
         self.y = y
         self.taxo = taxo
+        self.tree = tree
+        self.name = name
 
     def on_epoch_end(self, epoch, logs=None):
         y_pred = self.model.predict(self.X)
@@ -38,14 +41,20 @@ class performance_callback(keras.callbacks.Callback):
         accuracy = metrics.get_top_k_taxonomical_accuracy(self.y, y_pred)
         exact_match = metrics.get_exact_match(self.y, y_pred)
         consistency = metrics.get_consistency(y_pred, self.taxo)
-        print('-' * 100)
-        print(f"epoch={epoch + 1}, ", end='')
-        print(f"Exact Match = {exact_match:.4f}, ", end='')
+        hP, hR, hF1 = metrics.get_hierarchical_metrics(self.y, y_pred, self.tree)
+        t = PrettyTable(['Metric1', 'Value1', 'Metric2', 'Value2', 'Metric3', 'Value3'])
+        if self.name != None:
+            t.title = self.name
+        t.add_row(['Epoch', epoch + 1, 'Exact Match', "{:.4f}".format(exact_match), 'Consistency',
+                   "{:.4f}".format(consistency)])
+        t.add_row(
+            ['h-Precision', "{:.4f}".format(hP), 'h-Recall', "{:.4f}".format(hR), 'h-F1-Score', "{:.4f}".format(hF1)])
+        row = []
         for i in range(len(accuracy)):
-            print(f"accuracy level_{i} = {accuracy[i]:.4f}, ", end='')
-        print(f"Consistency = {consistency:.4f}")
-        print('-' * 100)
-        print('')
+            row.append('Accuracy L_' + str(i))
+            row.append("{:.4f}".format(accuracy[i]))
+        t.add_row(row)
+        print(t)
 
 
 def get_mout_model(num_classes: list,
@@ -400,13 +409,14 @@ class Masked_Output(keras.layers.Layer):
         masks.append(tf.matmul(tf.nn.softmax(z_list[1]), tf.transpose(self.M[0])))
         for i in range(1, len(self.size_outputs) - 1):
             m_mid1 = tf.matmul(tf.nn.softmax(z_list[i - 1]), self.M[i - 1])
-            m_mid2 = tf.matmul(tf.nn.softmax(z_list[i + 1]), tf.transpose(self.M[i]))
-            mask_sum = m_mid1 + m_mid2
+            # m_mid2 = tf.matmul(tf.nn.softmax(z_list[i + 1]), tf.transpose(self.M[i]))
+            mask_sum = m_mid1
             masks.append(tf.math.minimum(mask_sum, 1))
         masks.append(tf.matmul(tf.nn.softmax(z_list[-2]), self.M[-1]))
         # Applying the masks and compute outputs.
         out = []
-        for i in range(len(self.size_outputs)):
+        out.append(tf.nn.softmax(z_list[0]))
+        for i in range(1, len(self.size_outputs)):
             out.append(tf.nn.softmax(z_list[i] * masks[i]))
         return out
 
