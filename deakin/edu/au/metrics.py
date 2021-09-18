@@ -18,6 +18,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 from scipy.stats import hmean
 from sklearn.metrics import top_k_accuracy_score
+from treelib import Node, Tree
 
 
 def get_top_k_accuracy_score(y_true: list, y_pred: list, k=1):
@@ -128,6 +129,63 @@ def get_consistency(y_pred: list, taxo: list):
     return np.mean(consistency)
 
 
+def get_hierarchical_metrics(y_true: list, y_pred: list, tree: Tree):
+    """
+    This method compute the hierarchical precision/recall/F1-Score. For more details, see:
+
+    Kiritchenko S., Matwin S., Nock R., Famili A.F. (2006) Learning and Evaluation
+    in the Presence of Class Hierarchies: Application to Text Categorization. In: Lamontagne L.,
+    Marchand M. (eds) Advances in Artificial Intelligence. Canadian AI 2006. Lecture Notes in
+    Computer Science, vol 4013. Springer, Berlin, Heidelberg. https://doi.org/10.1007/11766247_34
+
+    :param y_pred: a 2d array where d1 is the taxonomy level, and d2 is the prediction for each example.
+    :type y_pred: list
+    :param y_true: a 2d array where d1 is the taxonomy level, and d2 is the ground truth for each example.
+    :type y_true: list
+    :param tree: A tree of the taxonomy.
+    :type tree: Tree
+    :return: the hierarchical precision/recall/F1-Score values
+    :rtype: float
+    """
+    y_pred = [np.argmax(x, axis=1) for x in y_pred]
+
+    if len(y_true) != len(y_pred):
+        raise Exception('Shape of the inputs should be the same')
+    hP_list = []
+    hR_list = []
+    hF1_list = []
+    for j in range(len(y_true[0])):
+        y_true_aug = set()
+        y_pred_aug = set()
+        for i in range(len(y_true)):
+            true_c = 'L' + str(i) + '_' + str(y_true[i][j][0])
+            y_true_aug.add(true_c)
+            while tree.parent(true_c) != None:
+                true_c = tree.parent(true_c).identifier
+                y_true_aug.add(true_c)
+
+            pred_c = 'L' + str(i) + '_' + str(y_pred[i][j])
+            y_pred_aug.add(pred_c)
+            while tree.parent(pred_c) != None:
+                pred_c = tree.parent(pred_c).identifier
+                y_pred_aug.add(pred_c)
+
+        y_true_aug.remove('root')
+        y_pred_aug.remove('root')
+
+        hP = len(y_true_aug.intersection(y_pred_aug)) / len(y_pred_aug)
+        hR = len(y_true_aug.intersection(y_pred_aug)) / len(y_true_aug)
+        if 2 * hP + hR != 0:
+            hF1 = 2 * hP * hR / (2 * hP + hR)
+        else:
+            hF1 = 0
+
+        hP_list.append(hP)
+        hR_list.append(hR)
+        hF1_list.append(hF1)
+    return np.mean(hP_list), np.mean(hR_list), np.mean(hF1_list)
+
+
 if __name__ == '__main__':
     y = [[1, 0, 1, 0, 0], [1, 2, 3, 4, 0], [3, 4, 5, 8, 0]]
 
@@ -138,6 +196,5 @@ if __name__ == '__main__':
              [0, 0, 0, 0, 0, 0, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 1]]
             ]
 
-    print(get_taxonomical_accuracy(y, y_pred))
     print(get_exact_match(y, y_pred))
     print(get_consistency(y_pred, taxo))
