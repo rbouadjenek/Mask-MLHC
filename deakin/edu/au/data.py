@@ -21,6 +21,7 @@ import tensorflow as tf
 import pandas as pd
 from sklearn.utils import shuffle
 from tensorflow import keras
+from treelib import Node, Tree
 
 
 # mapping_fine_to_cluster = {0: 5, 1: 2, 2: 3, 3: 6, 4: 6, 5: 0, 6: 2, 7: 2, 8: 8, 9: 1, 10: 1, 11: 3, 12: 8,
@@ -45,17 +46,17 @@ class Cifar100:
                'large_man-made_outdoor_things', 'large_natural_outdoor_scenes', 'large_omnivores_and_herivores',
                'medium_mammals', 'non-insect_inverterates', 'people', 'reptiles', 'small_mammals', 'trees',
                'vehicles_1', 'vehicles_2'],
-              ['apple', 'aquarium_fish', 'ray', 'bear', 'beaver', 'bed', 'bee', 'beetle', 'bicycle', 'bottle', 'owl',
-               'boy',
-               'ridge', 'bus', 'butterfly', 'camel', 'can', 'castle', 'caterpillar', 'cattle', 'chair', 'chimpanzee',
-               'clock', 'cloud', 'cockroach', 'couch', 'crab', 'crocodile', 'cup', 'dinosaur', 'dolphin', 'elephant',
-               'flatfish', 'forest', 'fox', 'girl', 'hamster', 'house', 'kangaroo', 'keyoard', 'lamp', 'lawn_mower',
-               'leopard', 'lion', 'lizard', 'loster', 'man', 'maple_tree', 'motorcycle', 'mountain', 'mouse',
-               'mushroom', 'oak_tree', 'orange', 'orchid', 'otter', 'palm_tree', 'pear', 'pickup_truck', 'pine_tree',
-               'plain', 'plate', 'poppy', 'porcupine', 'possum', 'rait', 'raccoon', 'ray', 'road', 'rocket', 'rose',
-               'sea', 'seal', 'shark', 'shrew', 'skunk', 'skyscraper', 'snail', 'snake', 'spider', 'squirrel',
-               'streetcar', 'sunflower', 'sweet_pepper', 'tale', 'tank', 'telephone', 'television', 'tiger', 'tractor',
-               'train', 'trout', 'tulip', 'turtle', 'wardroe', 'whale', 'willow_tree', 'wolf', 'woman', 'worm']]
+              ['apple', 'aquarium_fish', 'baby', 'bear', 'beaver', 'bed', 'bee', 'beetle', 'bicycle', 'bottle', 'bowl',
+               'boy', 'bridge', 'bus', 'butterfly', 'camel', 'can', 'castle', 'caterpillar', 'cattle', 'chair',
+               'chimpanzee', 'clock', 'cloud', 'cockroach', 'couch', 'cra', 'crocodile', 'cup', 'dinosaur', 'dolphin',
+               'elephant', 'flatfish', 'forest', 'fox', 'girl', 'hamster', 'house', 'kangaroo', 'keyboard', 'lamp',
+               'lawn_mower', 'leopard', 'lion', 'lizard', 'lobster', 'man', 'maple_tree', 'motorcycle', 'mountain',
+               'mouse', 'mushroom', 'oak_tree', 'orange', 'orchid', 'otter', 'palm_tree', 'pear', 'pickup_truck',
+               'pine_tree', 'plain', 'plate', 'poppy', 'porcupine', 'possum', 'rabbit', 'raccoon', 'ray', 'road',
+               'rocket', 'rose', 'sea', 'seal', 'shark', 'shrew', 'skunk', 'skyscraper', 'snail', 'snake', 'spider',
+               'squirrel', 'streetcar', 'sunflower', 'sweet_pepper', 'table', 'tank', 'telephone', 'television',
+               'tiger', 'tractor', 'train', 'trout', 'tulip', 'turtle', 'wardrobe', 'whale', 'willow_tree', 'wolf',
+               'woman', 'worm']]
 
     def __init__(self):
         """
@@ -115,8 +116,8 @@ class Cifar100:
             y_top.append(c)
         return np.array(y_top)
 
-    def draw_taxonomy(self, filename):
-        return draw_taxonomy(self.taxonomy, filename, self.labels)
+    def get_tree(self):
+        return get_tree(self.taxonomy, self.labels)
 
 
 def load_dataset(labels_path, images_path, image_size):
@@ -220,8 +221,8 @@ class Stanford_Cars:
             labels[idx[0]] = class_train_level_2[i]
         self.labels.append(labels)
 
-    def draw_taxonomy(self, filename):
-        return draw_taxonomy(self.taxonomy, filename, self.labels)
+    def get_tree(self):
+        return get_tree(self.taxonomy, self.labels)
 
 
 class CU_Birds_200_2011:
@@ -292,30 +293,31 @@ class CU_Birds_200_2011:
             labels[idx[0]] = class_train_level_2[i]
         self.labels.append(labels)
 
-    def draw_taxonomy(self, filename):
-        return draw_taxonomy(self.taxonomy, filename, self.labels)
+    def get_tree(self):
+        return get_tree(self.taxonomy, self.labels)
 
 
-def draw_taxonomy(taxonomy, filename, labels):
+def get_tree(taxonomy, labels):
     """
     This method draws the taxonomy using the graphviz library.
     :return:
     :rtype: Digraph
      """
-    u = Digraph('unix', filename=filename, node_attr={'color': 'lightblue2', 'style': 'filled'}, strict=True)
-    u.attr(size='6,6')
-    u.attr(rankdir="LR")
+    tree = Tree()
+    tree.create_node("Root", "root")  # root node
 
     for i in range(len(taxonomy[0])):
-        u.edge('root', labels[0][i], labels[0][i])
+        tree.create_node(labels[0][i] + ' -> (L0_' + str(i) + ')', 'L0_' + str(i), parent="root")
 
     for l in range(len(taxonomy)):
         for i in range(len(taxonomy[l])):
             for j in range(len(taxonomy[l][i])):
                 if taxonomy[l][i][j] == 1:
-                    u.edge(labels[l][i], labels[l + 1][j])
+                    tree.create_node(labels[l + 1][j] + ' -> (L' + str(l + 1) + '_' + str(j) + ')',
+                                     'L' + str(l + 1) + '_' + str(j),
+                                     parent='L' + str(l) + '_' + str(i))
 
-    return u
+    return tree
 
 
 if __name__ == '__main__':
