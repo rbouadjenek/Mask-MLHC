@@ -19,6 +19,7 @@ from sklearn.metrics import accuracy_score
 from scipy.stats import hmean
 from sklearn.metrics import top_k_accuracy_score
 from treelib import Node, Tree
+from prettytable import PrettyTable
 
 
 def get_top_k_accuracy_score(y_true: list, y_pred: list, k=1):
@@ -102,27 +103,25 @@ def get_exact_match(y_true: list, y_pred: list):
     return np.mean(exact_match)
 
 
-def get_consistency(y_pred: list, taxo: list):
+def get_consistency(y_pred: list, tree: Tree):
     """
     This methods estimates the consistency.
 
     :param y_pred: a 2d array where d1 is the taxonomy level, and d2 is the prediction for each example.
     :type y_pred: np.array
-    :param taxo: a
-    :type taxo: np.array
+    :param tree: A tree of the taxonomy.
+    :type tree: Tree
     :return: value of consistency.
     :rtype: float
     """
     y_pred = [np.argmax(x, axis=1) for x in y_pred]
-    if len(y_pred) - 1 != len(taxo):
-        raise Exception('The predictions do not match the taxonomy.')
     consistency = []
     for j in range(len(y_pred[0])):
         v = 1
         for i in range(len(y_pred) - 1):
-            l = int(y_pred[i][j])
-            l_next = int(y_pred[i + 1][j])
-            if taxo[i][l][l_next] == 0:
+            parent = 'L' + str(i) + '_' + str(y_pred[i][j])
+            child = 'L' + str(i + 1) + '_' + str(y_pred[i + 1][j])
+            if tree.parent(child).identifier != parent:
                 v = 0
                 break
         consistency.append(v)
@@ -186,15 +185,59 @@ def get_hierarchical_metrics(y_true: list, y_pred: list, tree: Tree):
     return np.mean(hP_list), np.mean(hR_list), np.mean(hF1_list)
 
 
+def performance_report(y_true: list, y_pred: list, tree: Tree, title=None):
+    """
+        Build a text report showing the main classification metrics.
+
+        :param y_pred: a 2d array where d1 is the taxonomy level, and d2 is the prediction for each example.
+        :type y_pred: list
+        :param y_true: a 2d array where d1 is the taxonomy level, and d2 is the ground truth for each example.
+        :type y_true: list
+        :param tree: A tree of the taxonomy.
+        :type tree: Tree
+        :param title: A title for the report.
+        :type title: str
+        :return: the hierarchical precision/recall/F1-Score values
+        :rtype: float
+        """
+    accuracy = get_top_k_taxonomical_accuracy(y_true, y_pred)
+    exact_match = get_exact_match(y_true, y_pred)
+    consistency = get_consistency(y_pred, tree)
+    hP, hR, hF1 = get_hierarchical_metrics(y_true, y_pred, tree)
+    t = PrettyTable(['Metric1', 'Value1', 'Metric2', 'Value2', 'Metric3', 'Value3'])
+    if title != None:
+        t.title = title
+    t.add_row(['Exact Match', "{:.4f}".format(exact_match),
+               'Consistency', "{:.4f}".format(consistency),
+               '-', '-'])
+    t.add_row(['h-Precision', "{:.4f}".format(hP),
+               'h-Recall', "{:.4f}".format(hR),
+               'h-F1-Score', "{:.4f}".format(hF1)])
+    row = []
+    for i in range(len(accuracy)):
+        row.append('Accuracy L_' + str(i))
+        row.append("{:.4f}".format(accuracy[i]))
+    t.add_row(row)
+    t.add_row(['h-Accuracy-k=1', "{:.4f}".format(get_h_accuracy(y_true, y_pred, k=1)),
+               'h-Accuracy-k=2', "{:.4f}".format(get_h_accuracy(y_true, y_pred, k=2)),
+               'h-Accuracy-k=5', "{:.4f}".format(get_h_accuracy(y_true, y_pred, k=5))])
+
+    t.add_row(['m-Accuracy-k=1', "{:.4f}".format(get_m_accuracy(y_true, y_pred, k=1)),
+               'm-Accuracy-k=2', "{:.4f}".format(get_m_accuracy(y_true, y_pred, k=2)),
+               'm-Accuracy-k=5', "{:.4f}".format(get_m_accuracy(y_true, y_pred, k=5))])
+
+    print(t)
+
+
 if __name__ == '__main__':
     y = [[1, 0, 1, 0, 0], [1, 2, 3, 4, 0], [3, 4, 5, 8, 0]]
 
-    y_pred = [[0, 1, 1, 0, 0], [1, 2, 1, 4, 0], [3, 1, 5, 8, 0]]
-
-    taxo = [[[1, 1, 0, 0, 0], [0, 0, 1, 1, 1]],
-            [[1, 1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0, 0], [0, 0, 0, 1, 1, 1, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 1]]
-            ]
-
-    print(get_exact_match(y, y_pred))
-    print(get_consistency(y_pred, taxo))
+    # y_pred = [[0, 1, 1, 0, 0], [1, 2, 1, 4, 0], [3, 1, 5, 8, 0]]
+    #
+    # taxo = [[[1, 1, 0, 0, 0], [0, 0, 1, 1, 1]],
+    #         [[1, 1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0, 0], [0, 0, 0, 1, 1, 1, 0, 0, 0],
+    #          [0, 0, 0, 0, 0, 0, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 1]]
+    #         ]
+    #
+    # print(get_exact_match(y, y_pred))
+    # print(get_consistency(y_pred, taxo))
