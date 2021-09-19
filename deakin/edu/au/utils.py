@@ -86,7 +86,7 @@ def get_potential_improvement(true_y, pred_y, taxo):
 
 
 def plot_potential_improvement(oracle_accuracy, model_accuracy):
-    labels = ['L0', 'L1', 'L2']
+    labels = ['Level 0', 'Level 1', 'Level 2']
     width = 0.6
     params = {'legend.fontsize': 10,
               'axes.labelsize': 18,

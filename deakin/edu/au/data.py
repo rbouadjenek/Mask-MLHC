@@ -91,6 +91,24 @@ class Cifar100:
             m1[t][c] = 1
         self.taxonomy = [m0, m1]
 
+    def map_fine_to_cluster_cifar100(self, y, mapping):
+        """
+        This function is only used to create label for clusters if used.  Clusters are obtained from:
+
+        :param y:
+        :type y:
+        :return:
+        :rtype:
+        """
+        # Mapping fine -> cluster
+
+        y_top = []
+        for f in y:
+            k = f[0]
+            c = np.array([mapping[k]])
+            y_top.append(c)
+        return np.array(y_top)
+
     def get_tree(self):
         return get_tree(self.taxonomy, self.labels)
 
