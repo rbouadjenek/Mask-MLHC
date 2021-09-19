@@ -28,33 +28,15 @@ from prettytable import PrettyTable
 
 
 class performance_callback(keras.callbacks.Callback):
-    def __init__(self, X, y, taxo, tree, name=None):
+    def __init__(self, X, y, tree, name=None):
         self.X = X
         self.y = y
-        self.taxo = taxo
         self.tree = tree
         self.name = name
 
     def on_epoch_end(self, epoch, logs=None):
         y_pred = self.model.predict(self.X)
-        # y_pred = get_pred_indexes(y_pred)
-        accuracy = metrics.get_top_k_taxonomical_accuracy(self.y, y_pred)
-        exact_match = metrics.get_exact_match(self.y, y_pred)
-        consistency = metrics.get_consistency(y_pred, self.taxo)
-        hP, hR, hF1 = metrics.get_hierarchical_metrics(self.y, y_pred, self.tree)
-        t = PrettyTable(['Metric1', 'Value1', 'Metric2', 'Value2', 'Metric3', 'Value3'])
-        if self.name != None:
-            t.title = self.name
-        t.add_row(['Epoch', epoch + 1, 'Exact Match', "{:.4f}".format(exact_match), 'Consistency',
-                   "{:.4f}".format(consistency)])
-        t.add_row(
-            ['h-Precision', "{:.4f}".format(hP), 'h-Recall', "{:.4f}".format(hR), 'h-F1-Score', "{:.4f}".format(hF1)])
-        row = []
-        for i in range(len(accuracy)):
-            row.append('Accuracy L_' + str(i))
-            row.append("{:.4f}".format(accuracy[i]))
-        t.add_row(row)
-        print(t)
+        metrics.performance_report(self.y, y_pred, self.tree, title=self.name)
 
 
 def get_mout_model(num_classes: list,
