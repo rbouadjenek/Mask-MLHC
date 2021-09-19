@@ -74,6 +74,10 @@ class Cifar100:
         self.X_val = X_f_test[:5000]
         self.X_test = X_f_test[5000:]
 
+        self.train_filenames = [str(x) for x in range(len(self.X_train))]
+        self.val_filenames = [str(x) for x in range(len(self.X_val))]
+        self.test_filenames = [str(x) for x in range(len(self.X_test))]
+
         self.y_train = [y_top_train, y_c_train, y_f_train]
         self.y_val = [y_top_test[:5000], y_c_test[:5000], y_f_test[:5000]]
         self.y_test = [y_top_test[5000:], y_c_test[5000:], y_f_test[5000:]]
