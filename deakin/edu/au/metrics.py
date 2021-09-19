@@ -175,7 +175,7 @@ def get_hierarchical_metrics(y_true: list, y_pred: list, tree: Tree):
         hP = len(y_true_aug.intersection(y_pred_aug)) / len(y_pred_aug)
         hR = len(y_true_aug.intersection(y_pred_aug)) / len(y_true_aug)
         if 2 * hP + hR != 0:
-            hF1 = 2 * hP * hR / (2 * hP + hR)
+            hF1 = 2 * hP * hR / (hP + hR)
         else:
             hF1 = 0
 
