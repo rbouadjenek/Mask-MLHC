@@ -21,18 +21,7 @@ import tensorflow as tf
 import pandas as pd
 from sklearn.utils import shuffle
 from tensorflow import keras
-from treelib import Node, Tree
-
-
-# mapping_fine_to_cluster = {0: 5, 1: 2, 2: 3, 3: 6, 4: 6, 5: 0, 6: 2, 7: 2, 8: 8, 9: 1, 10: 1, 11: 3, 12: 8,
-#                                13: 8, 14: 2, 15: 6, 16: 1, 17: 8, 18: 2, 19: 6, 20: 0, 21: 3, 22: 1, 23: 7, 24: 2,
-#                                25: 0, 26: 2, 27: 6, 28: 1, 29: 6, 30: 6, 31: 6, 32: 6, 33: 4, 34: 6, 35: 3, 36: 6,
-#                                37: 8, 38: 6, 39: 1, 40: 1, 41: 8, 42: 6, 43: 6, 44: 2, 45: 2, 46: 3, 47: 4, 48: 8,
-#                                49: 7, 50: 6, 51: 5, 52: 4, 53: 5, 54: 5, 55: 6, 56: 4, 57: 5, 58: 8, 59: 4, 60: 7,
-#                                61: 1, 62: 5, 63: 6, 64: 6, 65: 6, 66: 6, 67: 6, 68: 7, 69: 1, 70: 5, 71: 7, 72: 6,
-#                                73: 2, 74: 6, 75: 6, 76: 1, 77: 2, 78: 2, 79: 2, 80: 6, 81: 8, 82: 2, 83: 5, 84: 0,
-#                                85: 8, 86: 1, 87: 0, 88: 6, 89: 8, 90: 8, 91: 2, 92: 5, 93: 6, 94: 0, 95: 6, 96: 4,
-#                                97: 6, 98: 3, 99: 2}
+from treelib import Tree
 
 
 class Cifar100:
@@ -101,24 +90,6 @@ class Cifar100:
             c = c[0]
             m1[t][c] = 1
         self.taxonomy = [m0, m1]
-
-    def map_fine_to_cluster_cifar100(self, y, mapping):
-        """
-        This function is only used to create label for clusters if used.  Clusters are obtained from:
-
-        :param y:
-        :type y:
-        :return:
-        :rtype:
-        """
-        # Mapping fine -> cluster
-
-        y_top = []
-        for f in y:
-            k = f[0]
-            c = np.array([mapping[k]])
-            y_top.append(c)
-        return np.array(y_top)
 
     def get_tree(self):
         return get_tree(self.taxonomy, self.labels)
