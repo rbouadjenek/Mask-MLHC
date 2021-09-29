@@ -218,13 +218,13 @@ def performance_report(y_true: list, y_pred: list, tree: Tree, title=None):
         row.append('Accuracy L_' + str(i))
         row.append("{:.4f}".format(accuracy[i]))
     t.add_row(row)
-    t.add_row(['Harmonic mean Accuracy-k=1', "{:.4f}".format(get_h_accuracy(y_true, y_pred, k=1)),
-               'Harmonic mean Accuracy-k=2', "{:.4f}".format(get_h_accuracy(y_true, y_pred, k=2)),
-               'Harmonic mean Accuracy-k=5', "{:.4f}".format(get_h_accuracy(y_true, y_pred, k=5))])
+    t.add_row(['HarmonicM Accuracy-k=1', "{:.4f}".format(get_h_accuracy(y_true, y_pred, k=1)),
+               'HarmonicM Accuracy-k=2', "{:.4f}".format(get_h_accuracy(y_true, y_pred, k=2)),
+               'HarmonicM Accuracy-k=5', "{:.4f}".format(get_h_accuracy(y_true, y_pred, k=5))])
 
-    t.add_row(['Arithmetic mean Accuracy-k=1', "{:.4f}".format(get_m_accuracy(y_true, y_pred, k=1)),
-               'Arithmetic mean Accuracy-k=2', "{:.4f}".format(get_m_accuracy(y_true, y_pred, k=2)),
-               'Arithmetic mean Accuracy-k=5', "{:.4f}".format(get_m_accuracy(y_true, y_pred, k=5))])
+    t.add_row(['ArithmeticM Accuracy-k=1', "{:.4f}".format(get_m_accuracy(y_true, y_pred, k=1)),
+               'ArithmeticM Accuracy-k=2', "{:.4f}".format(get_m_accuracy(y_true, y_pred, k=2)),
+               'ArithmeticM Accuracy-k=5', "{:.4f}".format(get_m_accuracy(y_true, y_pred, k=5))])
 
     print(t)
 
