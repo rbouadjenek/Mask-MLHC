@@ -241,8 +241,8 @@ def get_Stanford_Cars(image_size=(64, 64), batch_size=32):
 
 def get_CU_Birds_200_2011(image_size=(64, 64), batch_size=32):
     # Get images
-    train_data_url = 'http://206.12.93.90:8080/CUB_200_2011/CUB_200_2011.tgz'
-    dataset_path = keras.utils.get_file('CUB_200_2011', train_data_url, untar=True)
+    train_data_url = 'http://206.12.93.90:8080/CUB_200_2011/CUB_200_2011_v0.2.tar.gz'
+    dataset_path = keras.utils.get_file('CUB_200_2011_v0.2', train_data_url, untar=True)
     # Get labels for training set
     train_labels_url = 'https://rbouadjenek.github.io/datasets/cu_birds_train_labels.csv'
     train_labels_path = keras.utils.get_file("cu_birds_train_labels.csv", train_labels_url)
