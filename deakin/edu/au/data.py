@@ -113,178 +113,90 @@ class Cifar100:
         return get_tree(self.taxonomy, self.labels)
 
 
-def load_dataset(labels_path, images_path, image_size):
-    df = pd.read_csv(labels_path)
-    filenames = df['fname'].values
-    label_level_0 = df['label_level_0'].values
-    class_level_0 = np.array([[x] for x in df['class_level_0'].values])
-    label_level_1 = df['label_level_1'].values
-    class_level_1 = np.array([[x] for x in df['class_level_1'].values])
-    label_level_2 = df['label_level_2'].values
-    class_level_2 = np.array([[x] for x in df['class_level_2'].values])
+class Dataset:
 
-    dataset = tf.keras.preprocessing.image_dataset_from_directory(
-        images_path,
-        label_mode=None,
-        color_mode="rgb",
-        batch_size=1,
-        image_size=image_size,
-        shuffle=False,
-    )
-
-    dataset_list = [[] for x in range(filenames.size)]
-    for img, fname1 in zip(dataset, dataset.file_paths):
-        for i, fname2 in enumerate(filenames):
-            if fname2 in fname1:
-                dataset_list[i] = list(img[0])
-                break
-    dataset_np = np.stack(dataset_list)
-    dataset_np = dataset_np.astype(int)
-    dataset_np, label_level_0, class_level_0, label_level_1, class_level_1, label_level_2, class_level_2, filenames = shuffle(
-        dataset_np, label_level_0, class_level_0, label_level_1, class_level_1, label_level_2, class_level_2, filenames,
-        random_state=0)
-    return dataset_np, label_level_0, class_level_0, label_level_1, class_level_1, label_level_2, class_level_2, filenames
-
-
-class Stanford_Cars:
-
-    def __init__(self, image_size):
-        self.name = 'stanford_cars'
-        train_data_url = 'http://ai.stanford.edu/~jkrause/car196/car_ims.tgz'
-        filename = 'car_ims'
-        print('Preparing dataset...')
-        dataset_path = keras.utils.get_file(filename, train_data_url, untar=True)
-        train_csv_url = 'https://rbouadjenek.github.io/datasets/stanford_cars_train_labels.txt'
-        train_label_path = keras.utils.get_file("stanford_cars_train_labels.csv", train_csv_url)
-        test_csv_url = 'https://rbouadjenek.github.io/datasets/stanford_cars_test_labels.txt'
-        test_label_path = keras.utils.get_file("stanford_cars_test_labels.csv", test_csv_url)
-        X_train, class_train_level_0, y_train_level_0, class_train_level_1, y_train_level_1, class_train_level_2, y_train_level_2, train_filenames = load_dataset(
-            labels_path=train_label_path, images_path=dataset_path,
-            image_size=image_size)
-        X_test, class_test_level_0, y_test_level_0, class_test_level_1, y_test_level_1, class_test_level_2, y_test_level_2, test_filenames = load_dataset(
-            labels_path=test_label_path,
-            images_path=dataset_path,
-            image_size=image_size)
-
-        self.train_filenames = train_filenames
-        self.val_filenames = test_filenames[:4020]
-        self.test_filenames = test_filenames[4020:]
-        self.X_train = X_train
-        self.X_val = X_test[:4020]
-        self.X_test = X_test[4020:]
-
-        self.y_train = [y_train_level_0, y_train_level_1, y_train_level_2]
-        self.y_val = [y_test_level_0[:4020], y_test_level_1[:4020], y_test_level_2[:4020]]
-        self.y_test = [y_test_level_0[4020:], y_test_level_1[4020:], y_test_level_2[4020:]]
-
-        self.num_classes_l0 = len(set([v[0] for v in y_train_level_0]))
-        self.num_classes_l1 = len(set([v[0] for v in y_train_level_1]))
-        self.num_classes_l2 = len(set([v[0] for v in y_train_level_2]))
+    def __init__(self, name, dataset_path, train_labels_path, test_labels_path, image_size=(64, 64), batch_size=32):
+        self.name = name
+        self.image_size_ = image_size
+        self.image_size = (image_size[0], image_size[1], 3)
+        self.batch_size = batch_size
+        self.dataset_path = dataset_path
+        # Training set
+        train_labels_df = pd.read_csv(train_labels_path, sep=",", header=0)
+        train_labels_df = train_labels_df.sample(frac=1).reset_index(drop=True)
+        self.train_labels_df = train_labels_df
+        self.train_dataset = self.get_pipeline(train_labels_df)
+        # Splitting into val and test sets
+        test_labels_df = pd.read_csv(test_labels_path, sep=",", header=0)
+        test_labels_df = test_labels_df.sample(frac=1).reset_index(drop=True)
+        split = int(len(test_labels_df) * 0.50)
+        val_labels_df = test_labels_df[:split]
+        self.val_labels_df = val_labels_df
+        test_labels_df = test_labels_df[split:]
+        self.test_labels_df = test_labels_df
+        # Validation set
+        self.val_dataset = self.get_pipeline(val_labels_df)
+        # Test set
+        self.test_dataset = self.get_pipeline(test_labels_df)
+        # Number of classes
+        self.num_classes_l0 = len(set(train_labels_df['class_level_0']))
+        self.num_classes_l1 = len(set(train_labels_df['class_level_1']))
+        self.num_classes_l2 = len(set(train_labels_df['class_level_2']))
         self.num_classes = [self.num_classes_l0, self.num_classes_l1, self.num_classes_l2]
-
-        self.image_size = self.X_train[0].shape
         # Encoding the taxonomy
         m0 = [[0 for x in range(self.num_classes_l1)] for y in range(self.num_classes_l0)]
-        for (t, c) in zip(y_train_level_0, y_train_level_1):
-            t = t[0]
-            c = c[0]
+        for (t, c) in zip(list(train_labels_df['class_level_0']), list(train_labels_df['class_level_1'])):
             m0[t][c] = 1
-
         m1 = [[0 for x in range(self.num_classes_l2)] for y in range(self.num_classes_l1)]
-        for (t, c) in zip(y_train_level_1, y_train_level_2):
-            t = t[0]
-            c = c[0]
+        for (t, c) in zip(list(train_labels_df['class_level_1']), list(train_labels_df['class_level_2'])):
             m1[t][c] = 1
         self.taxonomy = [m0, m1]
-
         # Build the labels
         self.labels = []
         labels = ['' for x in range(self.num_classes_l0)]
-        for i, idx in enumerate(y_train_level_0):
-            labels[idx[0]] = class_train_level_0[i]
+        for (l, c) in zip(list(train_labels_df['label_level_0']), list(train_labels_df['class_level_0'])):
+            labels[c] = l
         self.labels.append(labels)
 
         labels = ['' for x in range(self.num_classes_l1)]
-        for i, idx in enumerate(y_train_level_1):
-            labels[idx[0]] = class_train_level_1[i]
+        for (l, c) in zip(list(train_labels_df['label_level_1']), list(train_labels_df['class_level_1'])):
+            labels[c] = l
         self.labels.append(labels)
 
         labels = ['' for x in range(self.num_classes_l2)]
-        for i, idx in enumerate(y_train_level_2):
-            labels[idx[0]] = class_train_level_2[i]
+        for (l, c) in zip(list(train_labels_df['label_level_2']), list(train_labels_df['class_level_2'])):
+            labels[c] = l
         self.labels.append(labels)
 
-    def get_tree(self):
-        return get_tree(self.taxonomy, self.labels)
+    def encode_single_sample(self, img_path, class_level_0, class_level_1, class_level_2, fname):
+        # 1. Read image
+        img = tf.io.read_file(img_path)
+        # 2. Decode and convert to grayscale
+        img = tf.io.decode_image(img, expand_animations=False)
+        # 3. Convert to float32 in [0, 1] range
+        img = tf.image.convert_image_dtype(img, tf.float32)
+        # 4. Resize to the desired size
+        img = tf.image.resize(img, self.image_size_)
+        if self.output_level == 'last_level':
+            return img, class_level_2
+        if self.output_level == 'all':
+            return img, (class_level_0, class_level_1, class_level_2, fname)
+        else:
+            return img, (class_level_0, class_level_1, class_level_2)
 
-
-class CU_Birds_200_2011:
-
-    def __init__(self, image_size):
-        self.name = 'CU_Birds_200_2011'
-        train_data_url = 'http://206.12.93.90:8080/CUB_200_2011/CUB_200_2011.tgz'
-        filename = 'CUB_200_2011'
-        print('Preparing dataset...')
-        dataset_path = keras.utils.get_file(filename, train_data_url, untar=True)
-        train_csv_url = 'https://rbouadjenek.github.io/datasets/cu_birds_train_labels.csv'
-        train_label_path = keras.utils.get_file("cu_birds_train_labels.csv", train_csv_url)
-        test_csv_url = 'https://rbouadjenek.github.io/datasets/cu_birds_test_labels.csv'
-        test_label_path = keras.utils.get_file("cu_birds_test_labels.csv", test_csv_url)
-        X_train, class_train_level_0, y_train_level_0, class_train_level_1, y_train_level_1, class_train_level_2, y_train_level_2, train_filenames = load_dataset(
-            labels_path=train_label_path, images_path=dataset_path,
-            image_size=image_size)
-        X_test, class_test_level_0, y_test_level_0, class_test_level_1, y_test_level_1, class_test_level_2, y_test_level_2, test_filenames = load_dataset(
-            labels_path=test_label_path,
-            images_path=dataset_path,
-            image_size=image_size)
-
-        self.train_filenames = train_filenames
-        self.val_filenames = test_filenames[:3000]
-        self.test_filenames = test_filenames[3000:]
-        self.X_train = X_train
-        self.X_val = X_test[:3000]
-        self.X_test = X_test[3000:]
-
-        self.y_train = [y_train_level_0, y_train_level_1, y_train_level_2]
-        self.y_val = [y_test_level_0[:3000], y_test_level_1[:3000], y_test_level_2[:3000]]
-        self.y_test = [y_test_level_0[3000:], y_test_level_1[3000:], y_test_level_2[3000:]]
-
-        self.num_classes_l0 = len(set([v[0] for v in y_train_level_0]))
-        self.num_classes_l1 = len(set([v[0] for v in y_train_level_1]))
-        self.num_classes_l2 = len(set([v[0] for v in y_train_level_2]))
-        self.num_classes = [self.num_classes_l0, self.num_classes_l1, self.num_classes_l2]
-
-        self.image_size = self.X_train[0].shape
-        # Encoding the taxonomy
-        m0 = [[0 for x in range(self.num_classes_l1)] for y in range(self.num_classes_l0)]
-        for (t, c) in zip(y_train_level_0, y_train_level_1):
-            t = t[0]
-            c = c[0]
-            m0[t][c] = 1
-
-        m1 = [[0 for x in range(self.num_classes_l2)] for y in range(self.num_classes_l1)]
-        for (t, c) in zip(y_train_level_1, y_train_level_2):
-            t = t[0]
-            c = c[0]
-            m1[t][c] = 1
-        self.taxonomy = [m0, m1]
-
-        # Build the labels
-        self.labels = []
-        labels = ['' for x in range(self.num_classes_l0)]
-        for i, idx in enumerate(y_train_level_0):
-            labels[idx[0]] = class_train_level_0[i]
-        self.labels.append(labels)
-
-        labels = ['' for x in range(self.num_classes_l1)]
-        for i, idx in enumerate(y_train_level_1):
-            labels[idx[0]] = class_train_level_1[i]
-        self.labels.append(labels)
-
-        labels = ['' for x in range(self.num_classes_l2)]
-        for i, idx in enumerate(y_train_level_2):
-            labels[idx[0]] = class_train_level_2[i]
-        self.labels.append(labels)
+    def get_pipeline(self, dataframe, output_level=None):
+        self.output_level = output_level
+        dataset = tf.data.Dataset.from_tensor_slices(([self.dataset_path + '/' + x for x in dataframe['fname']],
+                                                      list(dataframe['class_level_0']),
+                                                      list(dataframe['class_level_1']),
+                                                      list(dataframe['class_level_2']),
+                                                      list(dataframe['fname'])))
+        dataset = (
+            dataset.map(self.encode_single_sample, num_parallel_calls=tf.data.AUTOTUNE)
+                .padded_batch(self.batch_size)
+                .prefetch(buffer_size=tf.data.AUTOTUNE)
+        )
+        return dataset
 
     def get_tree(self):
         return get_tree(self.taxonomy, self.labels)
@@ -313,8 +225,36 @@ def get_tree(taxonomy, labels):
     return tree
 
 
+def get_Stanford_Cars(image_size=(64, 64), batch_size=32):
+    # Get images
+    train_data_url = 'http://ai.stanford.edu/~jkrause/car196/car_ims.tgz'
+    dataset_path = keras.utils.get_file('car_ims', train_data_url, untar=True)
+    # Get labels for training set
+    train_labels_url = 'https://rbouadjenek.github.io/datasets/stanford_cars_train_labels.txt'
+    train_labels_path = keras.utils.get_file("stanford_cars_train_labels.csv", train_labels_url)
+    # Get labels for test set
+    test_labels_url = 'https://rbouadjenek.github.io/datasets/stanford_cars_test_labels.txt'
+    test_labels_path = keras.utils.get_file("stanford_cars_test_labels.csv", test_labels_url)
+
+    return Dataset('stanford_cars', dataset_path, train_labels_path, test_labels_path, image_size, batch_size)
+
+
+def get_CU_Birds_200_2011(image_size=(64, 64), batch_size=32):
+    # Get images
+    train_data_url = 'http://206.12.93.90:8080/CUB_200_2011/CUB_200_2011.tgz'
+    dataset_path = keras.utils.get_file('CUB_200_2011', train_data_url, untar=True)
+    # Get labels for training set
+    train_labels_url = 'https://rbouadjenek.github.io/datasets/cu_birds_train_labels.csv'
+    train_labels_path = keras.utils.get_file("cu_birds_train_labels.csv", train_labels_url)
+    # Get labels for test set
+    test_labels_url = 'https://rbouadjenek.github.io/datasets/cu_birds_test_labels.csv'
+    test_labels_path = keras.utils.get_file("cu_birds_test_labels.csv", test_labels_url)
+
+    return Dataset('CU_Birds_200_2011', dataset_path, train_labels_path, test_labels_path, image_size, batch_size)
+
+
 if __name__ == '__main__':
-    dataset = CU_Birds_200_2011(image_size=(32, 32))
+    dataset = get_Stanford_Cars(image_size=(32, 32))
     print(dataset.num_classes_l0)
     print(dataset.num_classes_l1)
     print(dataset.num_classes_l2)
