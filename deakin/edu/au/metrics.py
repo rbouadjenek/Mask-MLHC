@@ -157,7 +157,7 @@ def get_hierarchical_metrics(y_true: list, y_pred: list, tree: Tree):
         y_true_aug = set()
         y_pred_aug = set()
         for i in range(len(y_true)):
-            true_c = 'L' + str(i) + '_' + str(y_true[i][j][0])
+            true_c = 'L' + str(i) + '_' + str(y_true[i][j])
             y_true_aug.add(true_c)
             while tree.parent(true_c) != None:
                 true_c = tree.parent(true_c).identifier
@@ -204,6 +204,20 @@ def performance_report(y_true: list, y_pred: list, tree: Tree, title=None):
     exact_match = get_exact_match(y_true, y_pred)
     consistency = get_consistency(y_pred, tree)
     hP, hR, hF1 = get_hierarchical_metrics(y_true, y_pred, tree)
+    HarmonicM_Accuracy_k1 = get_h_accuracy(y_true, y_pred, k=1)
+    HarmonicM_Accuracy_k2 = get_h_accuracy(y_true, y_pred, k=2)
+    HarmonicM_Accuracy_k5 = get_h_accuracy(y_true, y_pred, k=5)
+    ArithmeticM_Accuracy_k1 = get_m_accuracy(y_true, y_pred, k=1)
+    ArithmeticM_Accuracy_k2 = get_m_accuracy(y_true, y_pred, k=2)
+    ArithmeticM_Accuracy_k5 = get_m_accuracy(y_true, y_pred, k=5)
+    out = {'exact_match': exact_match, 'consistency': consistency,
+           'hP': hP, 'hR': hR, 'hF1': hF1,
+           'HarmonicM_Accuracy_k1': HarmonicM_Accuracy_k1,
+           'HarmonicM_Accuracy_k2': HarmonicM_Accuracy_k2,
+           'HarmonicM_Accuracy_k5': HarmonicM_Accuracy_k5,
+           'ArithmeticM_Accuracy_k1': ArithmeticM_Accuracy_k1,
+           'ArithmeticM_Accuracy_k2': ArithmeticM_Accuracy_k2,
+           'ArithmeticM_Accuracy_k5': ArithmeticM_Accuracy_k5}
     t = PrettyTable(['Metric1', 'Value1', 'Metric2', 'Value2', 'Metric3', 'Value3'])
     if title != None:
         t.title = title
@@ -217,16 +231,34 @@ def performance_report(y_true: list, y_pred: list, tree: Tree, title=None):
     for i in range(len(accuracy)):
         row.append('Accuracy L_' + str(i))
         row.append("{:.4f}".format(accuracy[i]))
+        out['Accuracy L_' + str(i)] = accuracy[i]
     t.add_row(row)
-    t.add_row(['HarmonicM Accuracy-k=1', "{:.4f}".format(get_h_accuracy(y_true, y_pred, k=1)),
-               'HarmonicM Accuracy-k=2', "{:.4f}".format(get_h_accuracy(y_true, y_pred, k=2)),
-               'HarmonicM Accuracy-k=5', "{:.4f}".format(get_h_accuracy(y_true, y_pred, k=5))])
-
-    t.add_row(['ArithmeticM Accuracy-k=1', "{:.4f}".format(get_m_accuracy(y_true, y_pred, k=1)),
-               'ArithmeticM Accuracy-k=2', "{:.4f}".format(get_m_accuracy(y_true, y_pred, k=2)),
-               'ArithmeticM Accuracy-k=5', "{:.4f}".format(get_m_accuracy(y_true, y_pred, k=5))])
-
+    t.add_row(['HarmonicM Accuracy-k=1', "{:.4f}".format(HarmonicM_Accuracy_k1),
+               'HarmonicM Accuracy-k=2', "{:.4f}".format(HarmonicM_Accuracy_k2),
+               'HarmonicM Accuracy-k=5', "{:.4f}".format(HarmonicM_Accuracy_k5)])
+    t.add_row(['ArithmeticM Accuracy-k=1', "{:.4f}".format(ArithmeticM_Accuracy_k1),
+               'ArithmeticM Accuracy-k=2', "{:.4f}".format(ArithmeticM_Accuracy_k2),
+               'ArithmeticM Accuracy-k=5', "{:.4f}".format(ArithmeticM_Accuracy_k5)])
     print(t)
+    return out
+
+
+def predict_from_pipeline(model, dataset):
+    y_pred = []
+    y_true = []
+    for x, y in dataset:
+        batch_pred = model.predict(x)
+        for i in range(len(batch_pred)):
+            if i >= len(y_pred):
+                y_pred.append(None)
+                y_true.append(None)
+            if y_pred[i] is None:
+                y_pred[i] = batch_pred[i]
+                y_true[i] = list(y[i].numpy())
+            else:
+                y_pred[i] = np.concatenate([y_pred[i], batch_pred[i]])
+                y_true[i] = y_true[i] + list(y[i].numpy())
+    return y_true, y_pred
 
 
 if __name__ == '__main__':
