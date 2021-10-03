@@ -128,7 +128,7 @@ class Dataset:
         self.train_dataset = self.get_pipeline(train_labels_df)
         # Splitting into val and test sets
         test_labels_df = pd.read_csv(test_labels_path, sep=",", header=0)
-        test_labels_df = test_labels_df.sample(frac=1).reset_index(drop=True)
+        test_labels_df = test_labels_df.sample(frac=1, random_state=1).reset_index(drop=True)
         split = int(len(test_labels_df) * 0.50)
         val_labels_df = test_labels_df[:split]
         self.val_labels_df = val_labels_df
