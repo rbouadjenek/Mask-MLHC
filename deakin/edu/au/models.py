@@ -15,28 +15,38 @@
 #       limitations under the License.                                                   +
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 from tensorflow import keras
-from tensorflow.keras.layers import Input, Dropout, Flatten, Dense, Activation, Lambda, Conv2D, MaxPool2D, \
-    GlobalAveragePooling2D, Multiply, Concatenate, experimental
-from tensorflow.keras.models import Model, clone_model
+from tensorflow.keras import layers
+from tensorflow.keras.models import Model
 from tensorflow.keras.applications import VGG19, VGG16, ResNet50, Xception
 from deakin.edu.au.data import Cifar100
 import deakin.edu.au.metrics as metrics
 import numpy as np
 import tensorflow as tf
 from keras.applications.efficientnet import EfficientNetB0
-from prettytable import PrettyTable
 
 
 class performance_callback(keras.callbacks.Callback):
-    def __init__(self, X, y, tree, name=None):
-        self.X = X
-        self.y = y
+    def __init__(self, dataset, tree, conv_base, name, save_model=False, title=None):
+        self.dataset = dataset
         self.tree = tree
         self.name = name
+        self.conv_base = conv_base
+        self.save_model = save_model
+        self.title = title
+        self.max_exact_match = 0
 
     def on_epoch_end(self, epoch, logs=None):
-        y_pred = self.model.predict(self.X)
-        metrics.performance_report(self.y, y_pred, self.tree, title=self.name)
+        y_true, y_pred = metrics.predict_from_pipeline(self.model, self.dataset)
+        exact_match = metrics.performance_report(y_true, y_pred, self.tree, title=self.title)['exact_match']
+        if self.max_exact_match < exact_match and self.save_model:
+            self.max_exact_match = max(self.max_exact_match, exact_match)
+            self.model.save('models/' + self.model.name + '_' + self.name + '_' + self.conv_base)
+
+    def on_train_begin(self, logs):
+        self.max_exact_match = 0
+
+    def on_train_end(self, log):
+        pass
 
 
 def get_mout_model(num_classes: list,
@@ -47,13 +57,13 @@ def get_mout_model(num_classes: list,
                    lam=0):
     # Conv base
     regularizer = tf.keras.regularizers.l2(lam)
-    in_layer = Input(shape=image_size, name='main_input')
+    in_layer = layers.Input(shape=image_size, name='main_input')
     conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
-    conv_base = Flatten()(conv_base)
+    conv_base = layers.Flatten()(conv_base)
     # create output layers
     out_layers = []
     for idx, v in enumerate(num_classes):
-        out_layers.append(Dense(v, activation="softmax", name='out_level_' + str(idx))(conv_base))
+        out_layers.append(layers.Dense(v, activation="softmax", name='out_level_' + str(idx))(conv_base))
 
     # Build the model
     model = Model(name='mout_model',
@@ -79,9 +89,9 @@ def get_BCNN1(num_classes: list,
               lam=0):
     # Conv base
     regularizer = tf.keras.regularizers.l2(lam)
-    in_layer = Input(shape=image_size, name='main_input')
+    in_layer = layers.Input(shape=image_size, name='main_input')
     conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
-    conv_base = Flatten()(conv_base)
+    conv_base = layers.Flatten()(conv_base)
     # create output layers
     out_layers = []
     if reverse:
@@ -90,13 +100,18 @@ def get_BCNN1(num_classes: list,
         if reverse:
             idx = len(num_classes) - idx - 1
         if len(out_layers) == 0:
-            out_layers.append(Dense(v, activation="softmax", name='out_level_' + str(idx))(conv_base))
+            out_layers.append(layers.Dense(v, activation="softmax", name='out_level_' + str(idx))(conv_base))
         else:
-            out_layers.append(Dense(v, activation="softmax", name='out_level_' + str(idx))(out_layers[-1]))
+            out_layers.append(layers.Dense(v, activation="softmax", name='out_level_' + str(idx))(out_layers[-1]))
     if reverse:
         out_layers = list(reversed(out_layers))
     # Build the model
-    model = Model(name='Model_BCNN1_reversed_' + str(reverse),
+    if reverse:
+        name = 'BCNN1_reversed_model'
+    else:
+        name = 'BCNN1_model'
+
+    model = Model(name=name,
                   inputs=in_layer,
                   outputs=out_layers)
     loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
@@ -119,9 +134,9 @@ def get_BCNN2(num_classes: list,
               lam=0):
     # Conv base
     regularizer = tf.keras.regularizers.l2(lam)
-    in_layer = Input(shape=image_size, name='main_input')
+    in_layer = layers.Input(shape=image_size, name='main_input')
     conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
-    conv_base = Flatten()(conv_base)
+    conv_base = layers.Flatten()(conv_base)
     # create output layers
     logits_layers = []
     out_layers = []
@@ -131,18 +146,22 @@ def get_BCNN2(num_classes: list,
         if reverse:
             idx = len(num_classes) - idx - 1
         if len(logits_layers) == 0:
-            logits = Dense(v, name='logits_level_' + str(idx))(conv_base)
-            out_layers.append(Activation(keras.activations.softmax, name='out_level_' + str(idx))(logits))
-            logits_layers.append(Activation(keras.activations.relu)(logits))
+            logits = layers.Dense(v, name='logits_level_' + str(idx))(conv_base)
+            out_layers.append(layers.Activation(keras.activations.softmax, name='out_level_' + str(idx))(logits))
+            logits_layers.append(layers.Activation(keras.activations.relu)(logits))
         else:
-            logits = Dense(v, name='logits_level_' + str(idx))(logits)
-            out_layers.append(Activation(keras.activations.softmax, name='out_level_' + str(idx))(logits))
-            logits_layers.append(Activation(keras.activations.relu)(logits))
+            logits = layers.Dense(v, name='logits_level_' + str(idx))(logits)
+            out_layers.append(layers.Activation(keras.activations.softmax, name='out_level_' + str(idx))(logits))
+            logits_layers.append(layers.Activation(keras.activations.relu)(logits))
 
     if reverse:
         out_layers = list(reversed(out_layers))
     # Build the model
-    model = Model(name='Model_BCNN2_reversed_' + str(reverse),
+    if reverse:
+        name = 'BCNN2_reversed_model'
+    else:
+        name = 'BCNN2_model'
+    model = Model(name=name,
                   inputs=in_layer,
                   outputs=out_layers)
     loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
@@ -164,17 +183,18 @@ def get_mnets(num_classes: list,
               lam=0):
     # Conv base
     regularizer = tf.keras.regularizers.l2(lam)
-    in_layer = Input(shape=image_size, name='main_input')
+    in_layer = layers.Input(shape=image_size, name='main_input')
     conv_base_list = [get_conv_base(conv_base, regularizer=regularizer) for x in num_classes]
     out_layers = []
     for i in range(len(conv_base_list)):
         conv_base_list[i]._name = 'conv_base' + str(i)
         conv_base_list[i] = conv_base_list[i](in_layer)
-        conv_base_list[i] = Flatten()(conv_base_list[i])
-        out_layers.append(Dense(num_classes[i], activation="softmax", name='out_level_' + str(i))(conv_base_list[i]))
+        conv_base_list[i] = layers.Flatten()(conv_base_list[i])
+        out_layers.append(
+            layers.Dense(num_classes[i], activation="softmax", name='out_level_' + str(i))(conv_base_list[i]))
 
     # Build the model
-    model = Model(name='mnets',
+    model = Model(name='mnets_model',
                   inputs=in_layer,
                   outputs=out_layers)
     loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
@@ -245,13 +265,14 @@ def get_Baseline_model(num_classes: list,
                        lam=0):
     # Conv base
     regularizer = tf.keras.regularizers.l2(lam)
-    in_layer = Input(shape=image_size, name='main_input')
+    in_layer = layers.Input(shape=image_size, name='main_input')
     conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
-    conv_base = Flatten()(conv_base)
+    conv_base = layers.Flatten()(conv_base)
     # create output layers
-    out_layer = Dense(num_classes[-1], activation="softmax", name='output')(conv_base)
+    out_layer = layers.Dense(num_classes[-1], activation="softmax", name='output')(conv_base)
     # Build the model
-    model = BaselineModel(taxonomy=taxonomy, name='baseline_model',
+    model = BaselineModel(name='baseline_model',
+                          taxonomy=taxonomy,
                           inputs=in_layer,
                           outputs=out_layer)
     loss = keras.losses.SparseCategoricalCrossentropy()
@@ -269,12 +290,12 @@ def get_Classifier_model(num_classes,
                          lam=0):
     # Conv base
     regularizer = tf.keras.regularizers.l2(lam)
-    in_layer = Input(shape=image_size)
+    in_layer = layers.Input(shape=image_size)
     # rescale = experimental.preprocessing.Rescaling(1. / 255)(in_layer)
     conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
-    conv_base = Flatten()(conv_base)
+    conv_base = layers.Flatten()(conv_base)
     # create output layers
-    out_layer = Dense(num_classes, kernel_regularizer=regularizer, activation="softmax")(conv_base)
+    out_layer = layers.Dense(num_classes, kernel_regularizer=regularizer, activation="softmax")(conv_base)
     # Build the model
     model = Model(inputs=in_layer,
                   outputs=out_layer)
@@ -293,7 +314,7 @@ def get_MLPH_model(num_classes: list,
                    lam=0):
     # Conv base
     regularizer = tf.keras.regularizers.l2(lam)
-    in_layer = Input(shape=image_size, name='main_input')
+    in_layer = layers.Input(shape=image_size, name='main_input')
     conv_base = get_conv_base('vgg19', regularizer=regularizer)
     # conv_base.summary()
     layer_outputs = [conv_base.get_layer("block5_conv1").output,
@@ -301,21 +322,21 @@ def get_MLPH_model(num_classes: list,
                      conv_base.get_layer("block5_conv3").output]
     conv_base_model = Model(inputs=conv_base.input, outputs=layer_outputs)
     conv_base = conv_base_model(in_layer)
-    relu5_1_X = Flatten()(conv_base[0])
-    relu5_2_Y = Flatten()(conv_base[1])
-    relu5_3_Z = Flatten()(conv_base[2])
-    UTX = Dense(512, activation="relu", name='UTX')(relu5_1_X)
-    VTY = Dense(512, activation="relu", name='VTY')(relu5_2_Y)
-    WTZ = Dense(512, activation="relu", name='WTZ')(relu5_3_Z)
-    UTXoVTY = Multiply(name='UTXoVTY')([UTX, VTY])
-    UTXoWTZ = Multiply(name='UTXoWTZ')([UTX, WTZ])
-    VTYoWTZ = Multiply(name='VTYoWTZ')([VTY, WTZ])
-    UTXoVTYoWTZ = Multiply(name='UTXoVTYoWTZ')([UTX, VTY, WTZ])
-    concat = Concatenate()([UTXoVTY, UTXoWTZ, VTYoWTZ, UTXoVTYoWTZ])
+    relu5_1_X = layers.Flatten()(conv_base[0])
+    relu5_2_Y = layers.Flatten()(conv_base[1])
+    relu5_3_Z = layers.Flatten()(conv_base[2])
+    UTX = layers.Dense(512, activation="relu", name='UTX')(relu5_1_X)
+    VTY = layers.Dense(512, activation="relu", name='VTY')(relu5_2_Y)
+    WTZ = layers.Dense(512, activation="relu", name='WTZ')(relu5_3_Z)
+    UTXoVTY = layers.Multiply(name='UTXoVTY')([UTX, VTY])
+    UTXoWTZ = layers.Multiply(name='UTXoWTZ')([UTX, WTZ])
+    VTYoWTZ = layers.Multiply(name='VTYoWTZ')([VTY, WTZ])
+    UTXoVTYoWTZ = layers.Multiply(name='UTXoVTYoWTZ')([UTX, VTY, WTZ])
+    concat = layers.Concatenate()([UTXoVTY, UTXoWTZ, VTYoWTZ, UTXoVTYoWTZ])
     # create output layers
     out_layers = []
     for idx, v in enumerate(num_classes):
-        out_layers.append(Dense(v, activation="softmax", name='out_level_' + str(idx))(concat))
+        out_layers.append(layers.Dense(v, activation="softmax", name='out_level_' + str(idx))(concat))
 
     # Build the modelget_pred_indexes
     model = Model(name='MLPH_model',
@@ -377,29 +398,22 @@ class Masked_Output(keras.layers.Layer):
         # Estimate the inputs.
         if not isinstance(inputs, list):
             inputs = [inputs for x in range(len(self.size_outputs))]
-
-            # Compute the logits.
+        # Compute the logits.
         z_list = []
-        # z_mask_list = []
-
+        out = []
         for i in range(len(self.size_outputs)):
             z = tf.matmul(inputs[i], self.W[i]) + self.b[i]
             z_list.append(z)
-            # z_mask_list.append(tf.matmul(tf.nn.relu(z), self.W_mask[i]) + self.b_mask[i])
-        # Compute the masks.
-        masks = []
-        masks.append(tf.matmul(tf.nn.softmax(z_list[1]), tf.transpose(self.M[0])))
-        for i in range(1, len(self.size_outputs) - 1):
-            m_mid1 = tf.matmul(tf.nn.softmax(z_list[i - 1]), self.M[i - 1])
-            # m_mid2 = tf.matmul(tf.nn.softmax(z_list[i + 1]), tf.transpose(self.M[i]))
-            mask_sum = m_mid1
-            masks.append(tf.math.minimum(mask_sum, 1))
-        masks.append(tf.matmul(tf.nn.softmax(z_list[-2]), self.M[-1]))
-        # Applying the masks and compute outputs.
-        out = []
-        out.append(tf.nn.softmax(z_list[0]))
-        for i in range(1, len(self.size_outputs)):
-            out.append(tf.nn.softmax(z_list[i] * masks[i]))
+        # out.append(tf.nn.softmax(z_list[0]))
+        # for i in range(1, len(self.size_outputs)):
+        #     m = tf.matmul(out[i-1], self.M[i - 1])
+        #     out.append(tf.nn.softmax(z_list[i] * m))
+
+        out.append(tf.nn.softmax(z_list[-1]))
+        for i in reversed(range(0, len(self.size_outputs) - 1)):
+            m = tf.matmul(out[0], tf.transpose(self.M[i]))
+            out.insert(0, tf.nn.softmax(z_list[i] * m))
+
         return out
 
     def get_config(self):
@@ -427,10 +441,10 @@ def get_Masked_Output_Net(num_classes: list,
                           lam=0):
     # Conv base
     regularizer = tf.keras.regularizers.l2(lam)
-    in_layer = Input(shape=image_size, name='main_input')
+    in_layer = layers.Input(shape=image_size, name='main_input')
     if not mnets:
         conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
-        conv_base = Flatten()(conv_base)
+        conv_base = layers.Flatten()(conv_base)
         # outputs
         outputs = Masked_Output(taxonomy)(conv_base)
     else:
@@ -438,12 +452,16 @@ def get_Masked_Output_Net(num_classes: list,
         for i in range(len(conv_base_list)):
             conv_base_list[i]._name = 'conv_base_mcnn_' + str(i)
             conv_base_list[i] = conv_base_list[i](in_layer)
-            conv_base_list[i] = Flatten()(conv_base_list[i])
+            conv_base_list[i] = layers.Flatten()(conv_base_list[i])
         # outputs
         outputs = Masked_Output(taxonomy)(conv_base_list)
 
     # Build the model
-    model = Model(name='Masked_Output_Net',
+    if mnets:
+        name = 'mcnn_mnets_model'
+    else:
+        name = 'mcnn_model'
+    model = Model(name='mcnn_',
                   inputs=in_layer,
                   outputs=outputs)
     loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
@@ -463,33 +481,33 @@ class nin_model(Model):
         super(nin_model, self).__init__()
 
     def build(self, input_shape):
-        self.Conv2D1 = Conv2D(filters=192, kernel_size=(5, 5), activation='relu', padding='same')
-        self.Conv2D2 = Conv2D(filters=160, kernel_size=(1, 1), activation='relu', padding='same')
-        self.Conv2D3 = Conv2D(filters=96, kernel_size=(1, 1), activation='relu', padding='same')
+        self.Conv2D1 = layers.Conv2D(filters=192, kernel_size=(5, 5), activation='relu', padding='same')
+        self.Conv2D2 = layers.Conv2D(filters=160, kernel_size=(1, 1), activation='relu', padding='same')
+        self.Conv2D3 = layers.Conv2D(filters=96, kernel_size=(1, 1), activation='relu', padding='same')
 
-        self.Conv2D4 = Conv2D(filters=192, kernel_size=(5, 5), activation='relu', padding='same')
-        self.Conv2D5 = Conv2D(filters=192, kernel_size=(1, 1), activation='relu', padding='same')
-        self.Conv2D6 = Conv2D(filters=192, kernel_size=(1, 1), activation='relu', padding='same')
+        self.Conv2D4 = layers.Conv2D(filters=192, kernel_size=(5, 5), activation='relu', padding='same')
+        self.Conv2D5 = layers.Conv2D(filters=192, kernel_size=(1, 1), activation='relu', padding='same')
+        self.Conv2D6 = layers.Conv2D(filters=192, kernel_size=(1, 1), activation='relu', padding='same')
 
-        self.Conv2D7 = Conv2D(filters=192, kernel_size=(3, 3), activation='relu', padding='same')
-        self.Conv2D8 = Conv2D(filters=192, kernel_size=(1, 1), activation='relu', padding='same')
-        self.Conv2D9 = Conv2D(filters=192, kernel_size=(1, 1), activation='relu', padding='same')
+        self.Conv2D7 = layers.Conv2D(filters=192, kernel_size=(3, 3), activation='relu', padding='same')
+        self.Conv2D8 = layers.Conv2D(filters=192, kernel_size=(1, 1), activation='relu', padding='same')
+        self.Conv2D9 = layers.Conv2D(filters=192, kernel_size=(1, 1), activation='relu', padding='same')
 
     def call(self, inputs):
         x = self.Conv2D1(inputs)
         x = self.Conv2D2(x)
         x = self.Conv2D3(x)
-        x = MaxPool2D(2, strides=2, padding='same')(x)
-        x = Dropout(0.5)(x)
+        x = layers.MaxPool2D(2, strides=2, padding='same')(x)
+        x = layers.Dropout(0.5)(x)
         x = self.Conv2D4(x)
         x = self.Conv2D5(x)
         x = self.Conv2D6(x)
-        x = MaxPool2D(2, strides=2, padding='same')(x)
-        x = Dropout(0.5)(x)
+        x = layers.MaxPool2D(2, strides=2, padding='same')(x)
+        x = layers.Dropout(0.5)(x)
         x = self.Conv2D7(x)
         x = self.Conv2D8(x)
         x = self.Conv2D9(x)
-        return GlobalAveragePooling2D()(x)
+        return layers.GlobalAveragePooling2D()(x)
 
 
 def get_conv_base(conv_base, regularizer=tf.keras.regularizers.l2(0)):
