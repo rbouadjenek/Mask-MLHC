@@ -442,7 +442,7 @@ def get_Masked_Output_Net(num_classes: list,
         conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
         conv_base = layers.Flatten()(conv_base)
         # outputs
-        outputs = Masked_Output(taxonomy)(conv_base)
+        outputs = Masked_Output(taxonomy, architecture)(conv_base)
     else:
         conv_base_list = [get_conv_base(conv_base, regularizer=regularizer) for x in num_classes]
         for i in range(len(conv_base_list)):
@@ -450,7 +450,7 @@ def get_Masked_Output_Net(num_classes: list,
             conv_base_list[i] = conv_base_list[i](in_layer)
             conv_base_list[i] = layers.Flatten()(conv_base_list[i])
         # outputs
-        outputs = Masked_Output(taxonomy)(conv_base_list)
+        outputs = Masked_Output(taxonomy, architecture)(conv_base_list)
 
     # Build the model
     if mnets:
