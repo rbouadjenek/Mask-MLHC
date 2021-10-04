@@ -354,11 +354,12 @@ def get_MLPH_model(num_classes: list,
 
 
 class Masked_Output(keras.layers.Layer):
-    def __init__(self, M):
+    def __init__(self, M, architecture='bottom_up'):
         super(Masked_Output, self).__init__()
         self.M = []
         for m in M:
             self.M.append(tf.convert_to_tensor(m, dtype=tf.float32))
+        self.architecture = architecture
 
     def build(self, input_shape):
         """Creates weights."""
@@ -378,8 +379,6 @@ class Masked_Output(keras.layers.Layer):
         # Create parameters W and B of the output.
         self.W = []
         self.b = []
-        # self.W_mask = []
-        # self.b_mask = []
         for i, (input_dim, size_output) in enumerate(zip(input_dims, self.size_outputs)):
             self.W.append(self.add_weight(name='W_' + str(i), shape=(input_dim, size_output),
                                           initializer="random_normal",
@@ -387,12 +386,6 @@ class Masked_Output(keras.layers.Layer):
             self.b.append(self.add_weight(name='B_' + str(i), shape=(size_output,),
                                           initializer="zeros",
                                           trainable=True))
-            # self.W_mask.append(self.add_weight(shape=(size_output, size_output),
-            #                            initializer="random_normal",
-            #                            trainable=True))
-            # self.b_mask.append(self.add_weight(shape=(size_output,),
-            #                            initializer="zeros",
-            #                            trainable=True))
 
     def call(self, inputs):
         # Estimate the inputs.
@@ -404,15 +397,17 @@ class Masked_Output(keras.layers.Layer):
         for i in range(len(self.size_outputs)):
             z = tf.matmul(inputs[i], self.W[i]) + self.b[i]
             z_list.append(z)
-        # out.append(tf.nn.softmax(z_list[0]))
-        # for i in range(1, len(self.size_outputs)):
-        #     m = tf.matmul(out[i-1], self.M[i - 1])
-        #     out.append(tf.nn.softmax(z_list[i] * m))
 
-        out.append(tf.nn.softmax(z_list[-1]))
-        for i in reversed(range(0, len(self.size_outputs) - 1)):
-            m = tf.matmul(out[0], tf.transpose(self.M[i]))
-            out.insert(0, tf.nn.softmax(z_list[i] * m))
+        if self.architecture == 'bottom_up':
+            out.append(tf.nn.softmax(z_list[-1]))
+            for i in reversed(range(0, len(self.size_outputs) - 1)):
+                m = tf.matmul(out[0], tf.transpose(self.M[i]))
+                out.insert(0, tf.nn.softmax(z_list[i] * m))
+        else:
+            out.append(tf.nn.softmax(z_list[0]))
+            for i in range(1, len(self.size_outputs)):
+                m = tf.matmul(out[i - 1], self.M[i - 1])
+                out.append(tf.nn.softmax(z_list[i] * m))
 
         return out
 
