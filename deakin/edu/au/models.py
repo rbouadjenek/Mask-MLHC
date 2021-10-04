@@ -234,30 +234,6 @@ class BaselineModel(Model):
         return out
 
 
-# def get_Baseline_model(num_classes: list, image_size, taxonomy, conv_base=VGG19(include_top=False, weights="imagenet"),
-#                        learning_rate=1e-5):
-#     # Conv base
-#     in_layer = Input(shape=image_size, name='main_input')
-#     conv_base = conv_base(in_layer)
-#     conv_base = Flatten()(conv_base)
-#     # create output layers
-#     out_layers = []
-#     for idx, v in enumerate(num_classes):
-#         out_layers.append(Dense(v, activation="softmax", name='out_level_' + str(idx))(conv_base))
-#
-#     # Build the model
-#     model = BaselineModel(taxonomy=taxonomy, name='baseline_model',
-#                           inputs=in_layer,
-#                           outputs=out_layers)
-#     loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
-#     loss_weights = [1 for x in num_classes]
-#     optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
-#     model.compile(optimizer=optimizer,
-#                   loss=loss,
-#                   loss_weights=loss_weights,
-#                   metrics=['accuracy'])
-#     return model
-
 def get_Baseline_model(num_classes: list,
                        image_size,
                        taxonomy, conv_base='vgg19',
