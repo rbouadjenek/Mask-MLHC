@@ -461,7 +461,7 @@ def get_Masked_Output_Net(num_classes: list,
         name = 'mcnn_mnets_model'
     else:
         name = 'mcnn_model'
-    model = Model(name='mcnn_',
+    model = Model(name=name,
                   inputs=in_layer,
                   outputs=outputs)
     loss = [keras.losses.SparseCategoricalCrossentropy() for x in num_classes]
