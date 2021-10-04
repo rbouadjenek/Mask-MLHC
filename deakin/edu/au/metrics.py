@@ -18,7 +18,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 from scipy.stats import hmean
 from sklearn.metrics import top_k_accuracy_score
-from treelib import Node, Tree
+from treelib import Tree
 from prettytable import PrettyTable
 
 

@@ -19,7 +19,6 @@ from keras.datasets import cifar100
 from graphviz import Digraph
 import tensorflow as tf
 import pandas as pd
-from sklearn.utils import shuffle
 from tensorflow import keras
 from treelib import Tree
 
