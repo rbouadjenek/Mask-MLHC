@@ -459,9 +459,9 @@ def get_Masked_Output_Net(num_classes: list,
 
     # Build the model
     if mnets:
-        name = 'mcnn_mnets_model_' + architecture
+        name = 'mcnn_mnets_' + architecture + '_model'
     else:
-        name = 'mcnn_model_' + architecture
+        name = 'mcnn_' + architecture + '_model'
     model = Model(name=name,
                   inputs=in_layer,
                   outputs=outputs)
