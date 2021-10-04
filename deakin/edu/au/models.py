@@ -434,6 +434,7 @@ class Masked_Output(keras.layers.Layer):
 def get_Masked_Output_Net(num_classes: list,
                           image_size,
                           taxonomy,
+                          architecture='bottom_up',
                           conv_base='vgg19',
                           learning_rate=1e-5,
                           loss_weights=[],
@@ -458,9 +459,9 @@ def get_Masked_Output_Net(num_classes: list,
 
     # Build the model
     if mnets:
-        name = 'mcnn_mnets_model'
+        name = 'mcnn_mnets_model_' + architecture
     else:
-        name = 'mcnn_model'
+        name = 'mcnn_model_' + architecture
     model = Model(name=name,
                   inputs=in_layer,
                   outputs=outputs)
