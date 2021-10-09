@@ -402,6 +402,129 @@ class Masked_Output(keras.layers.Layer):
         return cls(**config)
 
 
+class Attention_Masked_Output(keras.layers.Layer):
+    def __init__(self, M, hidden_units, d_k, d_v, architecture='bottom_up'):
+        super(Attention_Masked_Output, self).__init__()
+        self.M = []
+        for m in M:
+            self.M.append(tf.convert_to_tensor(m, dtype=tf.float32))
+        self.hidden_units = hidden_units
+        self.d_k = d_k
+        self.d_v = d_v
+        self.architecture = architecture
+
+    def build(self, input_shape):
+        """Creates weights."""
+        # Estimate the size of each output using the taxonomy.
+        self.size_outputs = []
+        self.size_outputs.append(len(self.M[0]))
+        for m in self.M:
+            self.size_outputs.append(len(m[0]))
+        # Estimate the input size
+        input_dims = []
+        if isinstance(input_shape, list):
+            for i in range(len(self.size_outputs)):
+                input_dims.append(input_shape[i][1])
+        else:
+            for i in range(len(self.size_outputs)):
+                input_dims.append(input_shape[1])
+        # Create parameters W and B of the output.
+        self.W_o = []
+        self.b_o = []
+
+        self.W_e = []
+        self.b_e = []
+        for i, (input_dim, size_output) in enumerate(zip(input_dims, self.size_outputs)):
+            # Embedding layer weights
+            self.W_e.append(self.add_weight(name='W_e_' + str(i), shape=(input_dim, self.hidden_units),
+                                            initializer="random_normal",
+                                            trainable=True))
+            self.b_e.append(self.add_weight(name='b_e_' + str(i), shape=(self.hidden_units,),
+                                            initializer="zeros",
+                                            trainable=True))
+            # Output layer weights
+            self.W_o.append(self.add_weight(name='W_o_' + str(i), shape=(self.d_v, size_output),
+                                            initializer="random_normal",
+                                            trainable=True))
+            self.b_o.append(self.add_weight(name='b_o_' + str(i), shape=(size_output,),
+                                            initializer="zeros",
+                                            trainable=True))
+
+        # Attention layer weights
+        self.W_q = self.add_weight(name='W_q_', shape=(self.hidden_units, self.d_k),
+                                   initializer="random_normal",
+                                   trainable=True)
+        self.b_q = self.add_weight(name='b_q_', shape=(self.d_k,),
+                                   initializer="zeros",
+                                   trainable=True)
+        self.W_k = self.add_weight(name='W_k_', shape=(self.hidden_units, self.d_k),
+                                   initializer="random_normal",
+                                   trainable=True)
+        self.b_k = self.add_weight(name='b_k_', shape=(self.d_k,),
+                                   initializer="zeros",
+                                   trainable=True)
+        self.W_v = self.add_weight(name='W_v_', shape=(self.hidden_units, self.d_v),
+                                   initializer="random_normal",
+                                   trainable=True)
+        self.b_v = self.add_weight(name='b_v_', shape=(self.d_v,),
+                                   initializer="zeros",
+                                   trainable=True)
+
+    def call(self, inputs):
+        # Estimate the inputs.
+        if not isinstance(inputs, list):
+            inputs = [inputs for x in range(len(self.size_outputs))]
+        # Dense layer.
+        q_list = []
+        k_list = []
+        v_list = []
+        out = []
+        for i in range(len(self.size_outputs)):
+            # Compute embedding
+            z = tf.matmul(inputs[i], self.W_e[i]) + self.b_e[i]
+            a = tf.nn.relu(z)
+            # Compute Q, K, V for the embedding
+            q = tf.matmul(a, self.W_q) + self.b_q
+            q = tf.expand_dims(q, axis=-2)
+            q_list.append(q)
+            k = tf.matmul(a, self.W_k) + self.b_k
+            k = tf.expand_dims(k, axis=-2)
+            k_list.append(k)
+            v = tf.matmul(a, self.W_v) + self.b_v
+            v = tf.expand_dims(v, axis=-2)
+            v_list.append(v)
+
+        Q = tf.concat(q_list, axis=-2)
+        K = tf.concat(k_list, axis=-2)
+        V = tf.concat(v_list, axis=-2)
+        # Compute the relevance score
+        R = tf.matmul(Q, tf.transpose(K, perm=[0, 2, 1])) / np.sqrt(
+            self.d_k)  # Normalization (See Attention Is All You Need - arXiv)
+        R = tf.nn.softmax(R)
+        # Compute attention embeddings
+        att = tf.matmul(R, V)
+        # Compute the outputs
+        for i in range(len(self.size_outputs)):
+            z = tf.matmul(tf.transpose(att, perm=[1, 0, 2])[i], self.W_o[i]) + self.b_o[i]
+            out.append(tf.nn.softmax(z))
+
+        return out
+
+    def get_config(self):
+        config = super(Attention_Masked_Output, self).get_config()
+        # config.update({'M': self.M,
+        #                'W': self.W,
+        #                'b': self.b,
+        #                #                   'W_mask': self.W_mask,
+        #                #                   'b_mask': self.b_mask
+        #                })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+
 def get_Masked_Output_Net(num_classes: list,
                           image_size,
                           taxonomy,
@@ -410,6 +533,7 @@ def get_Masked_Output_Net(num_classes: list,
                           learning_rate=1e-5,
                           loss_weights=[],
                           mnets=False,
+                          attention=False,
                           lam=0):
     # Conv base
     regularizer = tf.keras.regularizers.l2(lam)
@@ -418,7 +542,14 @@ def get_Masked_Output_Net(num_classes: list,
         conv_base = get_conv_base(conv_base, regularizer=regularizer)(in_layer)
         conv_base = layers.Flatten()(conv_base)
         # outputs
-        outputs = Masked_Output(taxonomy, architecture)(conv_base)
+        if attention:
+            outputs = Attention_Masked_Output(taxonomy,
+                                              hidden_units=512,
+                                              d_k=512,
+                                              d_v=512,
+                                              architecture=architecture)(conv_base)
+        else:
+            outputs = Masked_Output(taxonomy, architecture=architecture)(conv_base)
     else:
         conv_base_list = [get_conv_base(conv_base, regularizer=regularizer) for x in num_classes]
         for i in range(len(conv_base_list)):
@@ -426,13 +557,23 @@ def get_Masked_Output_Net(num_classes: list,
             conv_base_list[i] = conv_base_list[i](in_layer)
             conv_base_list[i] = layers.Flatten()(conv_base_list[i])
         # outputs
-        outputs = Masked_Output(taxonomy, architecture)(conv_base_list)
+        if attention:
+            outputs = Attention_Masked_Output(taxonomy,
+                                              hidden_units=512,
+                                              d_k=512,
+                                              d_v=512,
+                                              architecture=architecture)(conv_base_list)
+        else:
+            outputs = Masked_Output(taxonomy, architecture)(conv_base_list)
 
     # Build the model
     if mnets:
-        name = 'mcnn_mnets_' + architecture + '_model'
+        name = 'mcnn_mnets_' + architecture
     else:
-        name = 'mcnn_' + architecture + '_model'
+        name = 'mcnn_' + architecture
+    if attention:
+        name = name + '_attention'
+    name = name + '_model'
     model = Model(name=name,
                   inputs=in_layer,
                   outputs=outputs)
