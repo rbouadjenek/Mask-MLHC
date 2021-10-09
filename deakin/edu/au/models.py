@@ -498,8 +498,8 @@ class Attention_Masked_Output(keras.layers.Layer):
         K = tf.concat(k_list, axis=-2)
         V = tf.concat(v_list, axis=-2)
         # Compute the relevance score
-        R = tf.matmul(Q, tf.transpose(K, perm=[0, 2, 1])) / np.sqrt(
-            self.d_k)  # Normalization (See Attention Is All You Need - arXiv)
+        # Normalization (See Attention Is All You Need - arXiv)
+        R = tf.matmul(Q, tf.transpose(K, perm=[0, 2, 1])) / np.sqrt(self.d_k)
         R = tf.nn.softmax(R)
         # Compute attention embeddings
         att = tf.matmul(R, V)
