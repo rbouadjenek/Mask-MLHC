@@ -503,10 +503,23 @@ class Attention_Masked_Output(keras.layers.Layer):
         R = tf.nn.softmax(R)
         # Compute attention embeddings
         att = tf.matmul(R, V)
+        att = tf.transpose(att, perm=[1, 0, 2])
         # Compute the outputs
+        z_list = []
         for i in range(len(self.size_outputs)):
-            z = tf.matmul(tf.transpose(att, perm=[1, 0, 2])[i], self.W_o[i]) + self.b_o[i]
-            out.append(tf.nn.softmax(z))
+            z = tf.matmul(att[i], self.W_o[i]) + self.b_o[i]
+            z_list.append(z)
+
+        if self.architecture == 'bottom_up':
+            out.append(tf.nn.softmax(z_list[-1]))
+            for i in reversed(range(0, len(self.size_outputs) - 1)):
+                m = tf.matmul(out[0], tf.transpose(self.M[i]))
+                out.insert(0, tf.nn.softmax(z_list[i] * m))
+        else:
+            out.append(tf.nn.softmax(z_list[0]))
+            for i in range(1, len(self.size_outputs)):
+                m = tf.matmul(out[i - 1], self.M[i - 1])
+                out.append(tf.nn.softmax(z_list[i] * m))
 
         return out
 
@@ -567,12 +580,14 @@ def get_Masked_Output_Net(num_classes: list,
             outputs = Masked_Output(taxonomy, architecture)(conv_base_list)
 
     # Build the model
-    if mnets:
-        name = 'mcnn_mnets_' + architecture
-    else:
-        name = 'mcnn_' + architecture
+    name = 'mcnn'
     if attention:
         name = name + '_attention'
+    if mnets:
+        name += '_' + architecture
+    else:
+        name += '_' + architecture
+
     name = name + '_model'
     model = Model(name=name,
                   inputs=in_layer,
