@@ -584,11 +584,9 @@ def get_Masked_Output_Net(num_classes: list,
     if attention:
         name = name + '_attention'
     if mnets:
-        name += '_' + architecture
-    else:
-        name += '_' + architecture
+        name += '_mnets'
 
-    name = name + '_model'
+    name = name + '_' + architecture + '_model'
     model = Model(name=name,
                   inputs=in_layer,
                   outputs=outputs)
